@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RecoverAI — Autonomous Revenue Recovery</title>
+<style>
+  :root{color-scheme:dark;--bg:#0b0e14;--panel:#141925;--panel2:#1c2330;--border:#263041;
+    --text:#e6ebf2;--muted:#8a97ab;--accent:#3b82f6;--green:#22c55e;--amber:#f59e0b;--red:#ef4444;--purple:#a855f7}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .app{max-width:1200px;margin:0 auto;padding:24px}
+  .header{display:flex;align-items:center;justify-content:space-between}
+  h1{font-size:26px;margin:0;letter-spacing:-.5px}.logo{color:var(--accent)}
+  .tag{color:var(--muted);font-size:14px;margin-left:12px}
+  .subhead{color:var(--muted);font-size:13px;margin:8px 0 20px}
+  .tabs{display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap}
+  .tab{background:var(--panel);border:1px solid var(--border);color:var(--muted);
+    padding:8px 16px;border-radius:8px;cursor:pointer;font-size:14px}
+  .tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .grid{display:grid;gap:16px}.metrics{grid-template-columns:repeat(3,1fr)}.cols2{grid-template-columns:1.4fr 1fr}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px}
+  .card h3{margin:0 0 14px;font-size:14px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+  .value{font-size:30px;font-weight:700}.mlabel{color:var(--muted);font-size:13px;margin-top:4px}
+  .green{color:var(--green)}.amber{color:var(--amber)}.red{color:var(--red)}
+  .pipe-row{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+  .pipe-label{width:150px;color:var(--muted);font-size:13px}
+  .pipe-bar{height:34px;border-radius:6px;display:flex;align-items:center;padding:0 12px;font-size:13px;font-weight:700}
+  .btn{background:var(--accent);color:#fff;border:none;padding:10px 18px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600}
+  .btn.secondary{background:var(--panel2);border:1px solid var(--border)}
+  .btn.danger{background:var(--red)}.btn:disabled{opacity:.5;cursor:not-allowed}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--border)}
+  td{padding:9px 10px;border-bottom:1px solid var(--border)}
+  tr.clk{cursor:pointer}tr.clk:hover{background:var(--panel2)}
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:600}
+  .temporary_failure,.recovered{background:rgba(34,197,94,.15);color:var(--green)}
+  .customer_action,.pending{background:rgba(59,130,246,.15);color:var(--accent)}
+  .payment_method_issue{background:rgba(168,85,247,.15);color:var(--purple)}
+  .subscription_failure,.escalated{background:rgba(245,158,11,.15);color:var(--amber)}
+  .high_risk,.failed{background:rgba(239,68,68,.16);color:var(--red)}
+  .unknown,.abandoned{background:rgba(138,151,171,.15);color:var(--muted)}
+  .muted{color:var(--muted)}.right{text-align:right}.mono{font-family:ui-monospace,Menlo,monospace}
+  .row{display:flex;gap:10px;align-items:center}.spacer{flex:1}.gap{margin-top:16px}
+  .ev{display:flex;gap:8px;padding:6px 0;font-size:14px}.ev .m{font-weight:700}
+  .ev.yes .m{color:var(--green)}.ev.no .m{color:var(--red)}
+  .big{font-size:40px;font-weight:800;letter-spacing:-1px}
+  .audit{font-family:ui-monospace,monospace;font-size:12.5px;max-height:520px;overflow-y:auto}
+  .aline{display:flex;gap:12px;padding:4px 0;border-bottom:1px solid var(--border)}
+  .astage{color:var(--accent);width:120px}.ats{color:var(--muted);white-space:nowrap}
+  .banner{padding:12px 16px;border-radius:8px;margin-bottom:14px;font-size:14px}
+  .warn{background:rgba(245,158,11,.12);border:1px solid var(--amber);color:var(--amber)}
+  .ok{background:rgba(34,197,94,.12);border:1px solid var(--green);color:var(--green)}
+  .loading{color:var(--muted);padding:40px;text-align:center}
+  input{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-size:14px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div><h1><span class="logo">◆</span> RecoverAI</h1><span class="tag">Autonomous Revenue Recovery</span></div>
+    <div class="row"><span id="status"></span><button class="btn secondary" onclick="doReset()">Reset demo</button></div>
+  </div>
+  <div class="subhead">Detect revenue slipping away → understand why → choose the best recovery action → execute it safely → measure the money recovered.</div>
+  <div id="offline"></div>
+  <div class="tabs" id="tabs"></div>
+  <div id="view"></div>
+</div>
+
+<script>
+const API = (location.protocol === "file:" ? "http://localhost:8000" : "") + "/api";
+const rupees = x => x==null?"—":"₹"+Number(x).toLocaleString("en-IN",{maximumFractionDigits:0});
+const pct = x => x==null?"—":(x*100).toFixed(0)+"%";
+const esc = s => (s==null?"":String(s));
+async function get(p){const r=await fetch(API+p);if(!r.ok)throw new Error(r.status);return r.json();}
+async function post(p,b){const r=await fetch(API+p,{method:"POST",headers:{"Content-Type":"application/json"},body:b?JSON.stringify(b):null});if(!r.ok)throw new Error(r.status);return r.json();}
+
+let TAB="dashboard", SELECTED=null;
+const TABS=[["dashboard","Command Center"],["queue","Recovery Queue"],["investigate","Investigation"],["audit","Audit Trail"],["chat","Ask RecoverAI"]];
+
+function renderTabs(){
+  document.getElementById("tabs").innerHTML = TABS.map(([id,l])=>
+    `<div class="tab ${TAB===id?'active':''}" onclick="setTab('${id}')">${l}</div>`).join("");
+}
+function setTab(id){TAB=id;renderTabs();render();}
+window.setTab=setTab;
+
+async function doReset(){await post("/reset");render();}
+window.doReset=doReset;
+
+async function checkOnline(){
+  try{
+    const h=await get("/health");
+    document.getElementById("offline").innerHTML="";
+    const live = h.data_source==="razorpay";
+    const supa = h.persistence==="supabase";
+    const srcCls = live ? "recovered" : "customer_action";
+    const srcTxt = live ? `● Live Razorpay (${h.razorpay_mode||"test"})` : "● Synthetic data";
+    const srcTip = live
+      ? `Ingesting real Razorpay payments (${h.razorpay_mode||"test"} mode) · ${h.payments_loaded} loaded`
+      : "Using the built-in synthetic dataset (no Razorpay keys configured)";
+    const perCls = supa ? "payment_method_issue" : "unknown";
+    const perTxt = supa ? "◆ Supabase" : "◆ In-memory";
+    const perTip = supa
+      ? "Persisting to Supabase" + (h.persistence_error?` · last error: ${h.persistence_error}`:"")
+      : "In-memory only (no Supabase keys configured)";
+    document.getElementById("status").innerHTML =
+      `<span class="pill ${srcCls}" title="${esc(srcTip)}">${srcTxt}</span>`+
+      `<span class="pill ${perCls}" title="${esc(perTip)}">${perTxt}</span>`;
+  }
+  catch{
+    document.getElementById("status").innerHTML="";
+    document.getElementById("offline").innerHTML=
+    `<div class="banner warn">Backend not reachable. Start it: <span class="mono">cd backend && uvicorn app.main:app --reload</span></div>`;}
+}
+
+const PIPE=[["failed","Failed","var(--red)"],["diagnosed","Diagnosed","var(--purple)"],
+  ["recoverable","Recoverable","var(--accent)"],["actions_executed","Actions executed","var(--amber)"],
+  ["recovered","Recovered","var(--green)"]];
+
+async function render(){
+  const v=document.getElementById("view");
+  v.innerHTML='<div class="loading">Loading…</div>';
+  try{
+    if(TAB==="dashboard") await renderDashboard(v);
+    else if(TAB==="queue") await renderQueue(v);
+    else if(TAB==="investigate") await renderInvestigate(v);
+    else if(TAB==="audit") await renderAudit(v);
+    else if(TAB==="chat") renderChat(v);
+  }catch(e){v.innerHTML=`<div class="banner warn">Error: ${esc(e.message)}. Is the backend running?</div>`;}
+}
+
+async function renderDashboard(v){
+  const [m,pipe,cats]=await Promise.all([get("/metrics"),get("/pipeline"),get("/categories")]);
+  const maxP=Math.max(...PIPE.map(s=>pipe[s[0]]||0),1);
+  const metric=(val,label,tone)=>`<div class="card"><div class="value ${tone||''}">${val}</div><div class="mlabel">${label}</div></div>`;
+  v.innerHTML=`
+    <div class="grid metrics">
+      ${metric(rupees(m.revenue_at_risk),"Revenue at risk","red")}
+      ${metric(rupees(m.recoverable_amount),"Still recoverable","amber")}
+      ${metric(rupees(m.recovered_amount),"Recovered","green")}
+    </div>
+    <div class="grid metrics gap">
+      ${metric(m.failed_count,"Failed payments")}
+      ${metric(pct(m.recovery_rate),"Recovery rate")}
+      ${metric(m.actions_executed,"Recovery actions taken")}
+    </div>
+    <div class="grid cols2 gap">
+      <div class="card"><h3>AI Recovery Pipeline</h3>
+        ${PIPE.map(([k,l,c])=>{const val=pipe[k]||0;const w=30+(val/maxP)*70;
+          return `<div class="pipe-row"><div class="pipe-label">${l}</div>
+            <div class="pipe-bar" style="width:${w}%;background:${c}22;border:1px solid ${c}55">${val}</div></div>`;}).join("")}
+        <div class="gap row"><button class="btn" id="batchBtn" onclick="runBatch()">▶ Recover eligible payments</button>
+          <span class="muted">Runs the full agentic loop across the batch, safely.</span></div>
+      </div>
+      <div class="card"><h3>Failure Categories</h3><table><tbody>
+        ${Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,val])=>
+          `<tr><td><span class="pill ${k}">${k.replace(/_/g," ")}</span></td><td class="right mono">${val}</td></tr>`).join("")}
+      </tbody></table>
+      <div class="gap muted" style="font-size:13px">Escalated: ${rupees(m.escalated_amount)} · Abandoned by policy: ${rupees(m.abandoned_amount)}</div>
+      </div>
+    </div>`;
+}
+async function runBatch(){
+  const b=document.getElementById("batchBtn");b.disabled=true;b.textContent="Recovering…";
+  await post("/recover-batch");render();
+}
+window.runBatch=runBatch;
+
+async function renderQueue(v){
+  const rows=await get("/queue?limit=25");
+  v.innerHTML=`<div class="card"><h3>AI Recovery Queue — ordered by expected recovered value</h3>
+    <p class="muted" style="margin-top:-6px;font-size:13px">Priority = expected recovery value, discounted for risk and effort. The agent decides <em>what to recover first</em>.</p>
+    <table><thead><tr><th>#</th><th>Payment</th><th class="right">Amount</th><th>Category</th>
+      <th>Recommended action</th><th class="right">p(recover)</th><th class="right">Expected ₹</th><th class="right">Priority</th></tr></thead>
+    <tbody>${rows.map((r,i)=>`<tr class="clk" onclick="openPayment('${r.payment_id}')">
+      <td class="muted">${i+1}</td><td class="mono">${r.payment_id}</td><td class="right mono">${rupees(r.amount)}</td>
+      <td><span class="pill ${r.category}">${esc(r.category).replace(/_/g," ")}</span></td>
+      <td class="mono">${r.action}</td><td class="right">${pct(r.recovery_probability)}</td>
+      <td class="right mono">${rupees(r.expected_recovery_value)}</td><td class="right mono">${rupees(r.recovery_priority)}</td></tr>`).join("")}
+    </tbody></table></div>`;
+}
+function openPayment(id){SELECTED=id;setTab("investigate");}
+window.openPayment=openPayment;
+
+async function renderInvestigate(v){
+  if(!SELECTED){
+    const rows=(await get("/payments?status=failed")).slice(0,40);
+    v.innerHTML=`<div class="card"><h3>Pick a failed payment to investigate</h3>
+      <table><thead><tr><th>Payment</th><th class="right">Amount</th><th>Method</th><th>Failure code</th><th>Status</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr class="clk" onclick="openPayment('${r.payment_id}')">
+        <td class="mono">${r.payment_id}</td><td class="right mono">${rupees(r.amount)}</td><td>${r.payment_method}</td>
+        <td class="mono">${esc(r.failure_code)}</td><td><span class="pill ${r.final_status}">${r.final_status}</span></td></tr>`).join("")}
+      </tbody></table></div>`;
+    return;
+  }
+  const rec=await get("/payments/"+SELECTED);
+  const p=rec.payment,d=rec.diagnosis,dec=rec.decision,pol=rec.policy,o=rec.outcome;
+  const checks=(pol&&pol.checks||[]).map(c=>`<div class="ev ${c.passed?'yes':'no'}"><span class="m">${c.passed?'✓':'✕'}</span>
+    <span>${c.name.replace(/_/g," ")} <span class="muted">— ${esc(c.detail)}</span></span></div>`).join("");
+  v.innerHTML=`<div class="row gap" style="margin-top:0"><button class="btn secondary" onclick="backToList()">← All failed payments</button></div>
+  <div class="grid cols2 gap">
+    <div class="grid">
+      <div class="card"><div class="row"><h3 style="margin:0">Payment ${p.payment_id}</h3><div class="spacer"></div>
+        <span class="pill ${rec.final_status}">${rec.final_status}</span></div>
+        <table style="margin-top:12px"><tbody>
+          <tr><td class="muted">Amount</td><td class="right mono">${rupees(p.amount)}</td></tr>
+          <tr><td class="muted">Method</td><td class="right">${p.payment_method}</td></tr>
+          <tr><td class="muted">Failure code</td><td class="right mono">${esc(p.failure_code)}</td></tr>
+          <tr><td class="muted">Customer history</td><td class="right">${p.previous_successes} ✓ / ${p.previous_failures} ✗</td></tr>
+          <tr><td class="muted">Preferred method</td><td class="right">${esc(p.preferred_method)}</td></tr>
+          <tr><td class="muted">Retry count</td><td class="right mono">${p.retry_count}</td></tr>
+          <tr><td class="muted">Risk score</td><td class="right mono">${p.risk_score?.toFixed(2)}</td></tr>
+        </tbody></table></div>
+      ${d?`<div class="card gap"><h3>AI Diagnosis</h3>
+        <div class="row"><span class="pill ${d.category}">${d.category.replace(/_/g," ")}</span><div class="spacer"></div>
+          <span class="muted">confidence ${pct(d.confidence)} · ${d.source}</span></div>
+        <p style="font-size:15px">${esc(d.human_reason)}</p>
+        ${d.evidence.map(e=>`<div class="ev ${e.supports_recovery?'yes':'no'}"><span class="m">${e.supports_recovery?'✓':'✕'}</span><span>${esc(e.text)}</span></div>`).join("")}
+      </div>`:""}
+    </div>
+    <div class="grid">
+      ${dec?`<div class="card"><h3>Recovery Decision</h3>
+        <div class="row" style="align-items:baseline"><div class="big">${pct(dec.recovery_probability)}</div><span class="muted">recovery probability</span></div>
+        <table style="margin-top:8px"><tbody>
+          <tr><td class="muted">Recommended action</td><td class="right mono">${dec.action}</td></tr>
+          <tr><td class="muted">Expected recovery</td><td class="right mono">${rupees(dec.expected_recovery_value)}</td></tr>
+          <tr><td class="muted">Priority score</td><td class="right mono">${rupees(dec.recovery_priority)}</td></tr>
+        </tbody></table>
+        <div class="gap muted" style="font-size:13px;margin-bottom:6px">Why this action?</div>
+        ${dec.rationale.map((r,i)=>`<div class="ev yes"><span class="m">${i+1}.</span><span>${esc(r)}</span></div>`).join("")}
+        <div class="gap muted" style="font-size:13px;margin-bottom:6px">Policy checks (deterministic)</div>${checks}
+        ${pol&&pol.requires_human_approval?`<div class="banner warn gap">High-value transaction — requires human approval.</div>`:""}
+      </div>`:""}
+      <div class="card"><h3>Execute</h3>
+        ${o?`<div class="banner ${o.success?'ok':'warn'}">${esc(o.message)}</div>
+          <div class="audit">${o.audit.map(a=>`<div class="aline"><span class="astage">${a.stage}</span><span>${esc(a.message)}</span></div>`).join("")}</div>`
+        :`<div class="row"><button class="btn" onclick="recoverOne(false)">▶ Recover this payment</button>
+          <button class="btn danger" onclick="recoverOne(true)" title="Simulate the recovery API being unavailable">Simulate API failure</button></div>`}
+      </div>
+    </div>
+  </div>`;
+}
+function backToList(){SELECTED=null;render();}
+window.backToList=backToList;
+async function recoverOne(force){await post("/payments/"+SELECTED+"/recover",{force_failure:force});render();}
+window.recoverOne=recoverOne;
+
+async function renderAudit(v){
+  const e=await get("/audit?limit=300");
+  v.innerHTML=`<div class="card"><h3>Audit Trail — every action the agent took</h3>
+    ${e.length===0?`<div class="muted">No actions yet. Run a recovery to populate the trail.</div>`
+    :`<div class="audit" style="max-height:560px">${e.slice().reverse().map(a=>
+      `<div class="aline"><span class="ats">${esc(a.ts).replace("T"," ")}</span><span class="astage">${a.stage}</span>
+       <span class="mono muted">${a.payment_id}</span><span>${esc(a.message)}</span></div>`).join("")}</div>`}
+  </div>`;
+}
+
+const CHAT_MSGS=[{role:"bot",text:"Ask me about revenue at risk, what's recoverable, or tell me to start recovery. Same engine as the dashboard — the chat is just another door in."}];
+const SUGG=["How much revenue is at risk?","How much can we recover?","Start recovery","How much have we recovered?"];
+function renderChat(v){
+  v.innerHTML=`<div class="card"><h3>Ask RecoverAI</h3>
+    <div id="clog" style="height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:10px"></div>
+    <div class="row" style="flex-wrap:wrap;margin-top:8px">${SUGG.map(s=>`<button class="btn secondary" style="font-size:12px" onclick="sendChat('${s.replace(/'/g,"\\'")}')">${s}</button>`).join("")}</div>
+    <div class="row gap"><input id="cin" style="flex:1" placeholder="Ask a question or give an instruction…"
+      onkeydown="if(event.key==='Enter')sendChat()"><button class="btn" onclick="sendChat()">Send</button></div>
+  </div>`;
+  drawChat();
+}
+function drawChat(){
+  const log=document.getElementById("clog");if(!log)return;
+  log.innerHTML=CHAT_MSGS.map(m=>`<div style="align-self:${m.role==='user'?'flex-end':'flex-start'};max-width:80%;
+    padding:10px 14px;border-radius:10px;font-size:14px;line-height:1.4;
+    background:${m.role==='user'?'var(--accent)':'var(--panel2)'};border:${m.role==='user'?'none':'1px solid var(--border)'}">${esc(m.text)}</div>`).join("");
+  log.scrollTop=log.scrollHeight;
+}
+async function sendChat(text){
+  const inp=document.getElementById("cin");
+  const msg=(text!==undefined?text:inp.value).trim();if(!msg)return;
+  if(inp)inp.value="";
+  CHAT_MSGS.push({role:"user",text:msg});drawChat();
+  try{const res=await post("/chat",{message:msg});CHAT_MSGS.push({role:"bot",text:res.reply});}
+  catch{CHAT_MSGS.push({role:"bot",text:"Couldn't reach the backend."});}
+  drawChat();
+}
+window.sendChat=sendChat;
+
+renderTabs();checkOnline();render();
+</script>
+</body>
+</html>

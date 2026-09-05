@@ -1,0 +1,29 @@
+# RecoverAI backend dependencies.
+#
+# Version floors are chosen so a clean `pip install` on Python 3.10 - 3.14
+# pulls PREBUILT wheels only -- no Rust toolchain and no MSVC/link.exe needed.
+#
+#  * pydantic 2.11+ ships cp314 wheels for pydantic-core (the compiled bit that
+#    failed to build on 2.9.x under Python 3.14).
+#  * plain `uvicorn` (not uvicorn[standard]) avoids the optional native deps
+#    (uvloop/httptools/watchfiles). `--reload` still works via the built-in
+#    stat-based reloader. See README if you want the faster [standard] extras.
+#
+# Upper bounds only guard against surprise major releases.
+
+fastapi>=0.115,<1.0
+pydantic>=2.11,<3.0
+uvicorn>=0.30,<1.0
+
+# --- Optional integrations (all pure-Python wheels, safe on 3.10 - 3.14) ---
+# The app runs fully without these: it falls back to synthetic data + in-memory
+# state when the corresponding keys in backend/.env are absent. They're listed
+# here so `pip install -r requirements.txt` makes the real Razorpay (test-mode)
+# and Supabase paths available when you do configure keys.
+#
+#  * razorpay      — official SDK: fetch real payments + create payment links.
+#  * requests      — Supabase writes via the PostgREST REST API (no native pg driver).
+#  * python-dotenv — loads backend/.env so secrets stay out of code and the repo.
+razorpay>=1.4,<2.0
+requests>=2.31,<3.0
+python-dotenv>=1.0,<2.0
