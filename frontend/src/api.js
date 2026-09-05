@@ -1,12 +1,21 @@
-// Thin API client. In dev, Vite proxies /api to the FastAPI backend.
-const BASE = "/api";
+// API client.
+// In development, Vite proxies /api to the FastAPI backend.
+// In production, VITE_API_URL points directly to the deployed backend.
+
+const BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : "/api";
 
 async function req(path, opts = {}) {
   const res = await fetch(BASE + path, {
     headers: { "Content-Type": "application/json" },
     ...opts,
   });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+
+  if (!res.ok) {
+    throw new Error(`${res.status} ${res.statusText}`);
+  }
+
   return res.json();
 }
 
@@ -26,11 +35,19 @@ export const api = {
   recoverBatch: () => req("/recover-batch", { method: "POST" }),
   audit: (limit = 200) => req(`/audit?limit=${limit}`),
   chat: (message) =>
-    req("/chat", { method: "POST", body: JSON.stringify({ message }) }),
+    req("/chat", {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    }),
   reset: () => req("/reset", { method: "POST" }),
 };
 
 export const rupees = (x) =>
-  x == null ? "—" : `₹${Number(x).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+  x == null
+    ? "—"
+    : `₹${Number(x).toLocaleString("en-IN", {
+        maximumFractionDigits: 0,
+      })}`;
 
-export const pct = (x) => (x == null ? "—" : `${(x * 100).toFixed(0)}%`);
+export const pct = (x) =>
+  x == null ? "—" : `${(x * 100).toFixed(0)}%`;
