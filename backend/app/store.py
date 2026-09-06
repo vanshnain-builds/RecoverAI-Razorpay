@@ -1,15 +1,12 @@
-"""Supabase persistence — write-through via the PostgREST REST API.
+"""Supabase persistence — write-through via PostgREST.
 
-We deliberately avoid the heavy `supabase` SDK (and native Postgres drivers) so
-the dependency set stays wheel-only and Python 3.14-safe: this talks to
-`{SUPABASE_URL}/rest/v1/<table>` with the service-role key using plain HTTP.
+RecoverAI keeps its fast in-memory engine state and mirrors that state to
+Supabase. Persistence is optional: when the Supabase environment variables are
+missing, the application continues in demo/in-memory mode.
 
-Design:
-  * Disabled unless SUPABASE_URL + SUPABASE_SERVICE_KEY are set.
-  * Every call is best-effort and wrapped — a persistence error is logged and
-    swallowed so it can NEVER break the recovery loop or the demo.
-  * The engine still runs in memory (fast, reproducible); we mirror state into
-    Postgres. Tables/enums must already exist — run db/supabase_schema.sql once.
+The backend uses the Supabase service-role key only. It is never exposed to the
+frontend. RLS remains enabled in Supabase; service_role is the trusted backend
+role used to persist recovery data.
 """
 from __future__ import annotations
 
@@ -45,10 +42,10 @@ def _headers(upsert: bool = False) -> Dict[str, str]:
 
 def _write(table: str, rows: List[Dict], on_conflict: str | None = None) -> None:
     global _last_error
-    if not rows:
+    if not rows or not is_enabled():
         return
     try:
-        import requests  # lazy import; only needed when persistence is on
+        import requests
 
         url = f"{config.SUPABASE_URL}/rest/v1/{table}"
         params = {"on_conflict": on_conflict} if on_conflict else None
@@ -60,16 +57,15 @@ def _write(table: str, rows: List[Dict], on_conflict: str | None = None) -> None
             timeout=20,
         )
         if resp.status_code >= 300:
-            _last_error = f"{table}: HTTP {resp.status_code} {resp.text[:200]}"
+            _last_error = f"{table}: HTTP {resp.status_code} {resp.text[:300]}"
             print(f"[RecoverAI] Supabase write failed -> {_last_error}", file=sys.stderr)
+        else:
+            _last_error = None
     except Exception as exc:  # noqa: BLE001
         _last_error = f"{table}: {exc!r}"
         print(f"[RecoverAI] Supabase write error -> {_last_error}", file=sys.stderr)
 
 
-# --------------------------------------------------------------------------- #
-# Row builders
-# --------------------------------------------------------------------------- #
 def _customer_rows(payments: List[Payment]) -> List[Dict]:
     seen: Dict[str, Dict] = {}
     for p in payments:
@@ -104,11 +100,8 @@ def _payment_row(p: Payment) -> Dict:
     }
 
 
-# --------------------------------------------------------------------------- #
-# Public API — called by the engine
-# --------------------------------------------------------------------------- #
 def save_payments(payments: List[Payment]) -> None:
-    """Upsert the initial payment universe (customers first for the FK)."""
+    """Upsert customers and the payment universe."""
     if not is_enabled():
         return
     _write("customers", _customer_rows(payments), on_conflict="customer_id")
@@ -116,14 +109,18 @@ def save_payments(payments: List[Payment]) -> None:
 
 
 def save_recovery(records: List[RecoveryRecord]) -> None:
-    """Persist the reasoning + outcome for records the agent just worked."""
+    """Persist the reasoning, policy, outcome and audit events for records worked."""
     if not is_enabled() or not records:
         return
 
-    diagnoses, decisions, policies, outcomes, audit = [], [], [], [], []
-    payments = [r.payment for r in records]
+    diagnoses: List[Dict] = []
+    decisions: List[Dict] = []
+    policies: List[Dict] = []
+    outcomes: List[Dict] = []
+    audit: List[Dict] = []
 
     for r in records:
+        p = r.payment
         if r.diagnosis:
             d = r.diagnosis
             diagnoses.append({
@@ -148,7 +145,7 @@ def save_recovery(records: List[RecoveryRecord]) -> None:
         if r.policy:
             pol = r.policy
             policies.append({
-                "payment_id": r.payment.payment_id,
+                "payment_id": p.payment_id,
                 "allowed": pol.allowed,
                 "requires_human_approval": pol.requires_human_approval,
                 "terminal_action": pol.terminal_action.value if pol.terminal_action else None,
@@ -167,12 +164,15 @@ def save_recovery(records: List[RecoveryRecord]) -> None:
             })
             for a in o.audit:
                 audit.append({
-                    "ts": a.ts, "payment_id": a.payment_id,
-                    "stage": a.stage, "message": a.message,
+                    "ts": a.ts,
+                    "payment_id": a.payment_id,
+                    "stage": a.stage,
+                    "message": a.message,
                 })
 
-    # Payment status may have flipped to RECOVERED — upsert it again.
-    _write("payments", [_payment_row(p) for p in payments], on_conflict="payment_id")
+    # Update payment state after execution and persist all derived records.
+    _write("customers", _customer_rows([r.payment for r in records]), on_conflict="customer_id")
+    _write("payments", [_payment_row(r.payment) for r in records], on_conflict="payment_id")
     _write("diagnoses", diagnoses)
     _write("decisions", decisions)
     _write("policy_evaluations", policies)
