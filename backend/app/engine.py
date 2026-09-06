@@ -344,3 +344,14 @@ def get_engine() -> RecoveryEngine:
     if _engine is None:
         _engine = RecoveryEngine()
     return _engine
+
+
+class RecoveryEngine:
+    # existing code...
+
+    def status(self):
+        return {
+            "status": "ready"
+        }
+
+    # rest of existing code...
