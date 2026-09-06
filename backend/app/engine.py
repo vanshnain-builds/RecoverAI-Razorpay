@@ -1,32 +1,16 @@
-"""Recovery engine — orchestration + in-memory store + metrics.
-
-Ties the layers together into the agentic loop:
-    DETECT (dataset) -> DIAGNOSE (agent) -> DECIDE (agent) -> GUARD (policy)
-    -> EXECUTE (executor) -> OBSERVE (outcome tracker) -> METRICS.
-
-State is held in memory for the prototype (a single merchant's session). A real
-deployment would swap this for a database; the RecoveryRecord shape is designed
-to map cleanly onto the tables described in the blueprint.
-"""
+"""Recovery engine — orchestration + in-memory store + metrics."""
 from __future__ import annotations
 
 import random
 import threading
+from collections import Counter
 from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from . import agent, config, executor, policy, source, store
-from .models import (
-    ActionType,
-    AuditEntry,
-    Payment,
-    PaymentStatus,
-    RecoveryRecord,
-)
+from .models import ActionType, AuditEntry, FailureCategory, Payment, PaymentStatus, RecoveryRecord
 
-# Recovery-probability threshold above which a failed payment counts as
-# "potentially recoverable" in the headline metrics.
 RECOVERABLE_THRESHOLD = 0.35
 
 
@@ -39,36 +23,20 @@ class RecoveryEngine:
         self.records: Dict[str, RecoveryRecord] = {}
         self.global_audit: List[AuditEntry] = []
         self.data_source: str = "synthetic"
-        # Immutable-in-session snapshot of exactly what was loaded at startup.
-        # Reset restores this snapshot instead of trying to infer the original
-        # state from the already-mutated records.
         self._initial_payments: List[Payment] = []
         self._load(n_payments, seed)
 
-    # ------------------------------------------------------------------ #
-    # Setup
-    # ------------------------------------------------------------------ #
     def _load(self, n_payments: int, seed: int) -> None:
         payments, src = source.load_payments(n_payments, seed)
         self.data_source = src
-        # Keep a deep snapshot so Reset Demo can restore the exact startup
-        # dataset, including the original payment status and all source fields.
         self._initial_payments = deepcopy(payments)
         self.records.clear()
         for p in payments:
             status = PaymentStatus.SUCCESS if p.status == PaymentStatus.SUCCESS else PaymentStatus.FAILED
             self.records[p.payment_id] = RecoveryRecord(payment=deepcopy(p), final_status=status)
-        # Mirror the initial universe into Supabase (no-op unless configured).
         store.save_payments([r.payment for r in self.records.values()])
 
     def reset(self) -> None:
-        """Reset the demo to the exact dataset loaded at startup.
-
-        This deliberately recreates every RecoveryRecord from the immutable
-        startup snapshot. Recovered/pending/escalated/abandoned payments are
-        therefore restored to their original Razorpay/synthetic status instead
-        of being left in a mutated state.
-        """
         with self._lock:
             self._rng = random.Random(self._seed)
             self.global_audit.clear()
@@ -77,13 +45,18 @@ class RecoveryEngine:
                 p = deepcopy(payment)
                 status = PaymentStatus.SUCCESS if p.status == PaymentStatus.SUCCESS else PaymentStatus.FAILED
                 self.records[p.payment_id] = RecoveryRecord(payment=p, final_status=status)
-
-        # Keep the persistence snapshot aligned when Supabase is enabled.
         store.save_payments([r.payment for r in self.records.values()])
 
-    # ------------------------------------------------------------------ #
-    # Reasoning (idempotent — safe to call repeatedly)
-    # ------------------------------------------------------------------ #
+    def status(self) -> Dict:
+        """Stable health payload; must never require optional services."""
+        return {
+            "status": "ready",
+            "data_source": self.data_source,
+            "razorpay_mode": config.razorpay_mode_effective(),
+            "persistence": "supabase" if store.is_enabled() else "memory",
+            "reasoning": "llm" if config.llm_enabled() else "simulated",
+        }
+
     def diagnose_and_decide(self, payment_id: str) -> RecoveryRecord:
         rec = self.records[payment_id]
         if rec.payment.status != PaymentStatus.FAILED:
@@ -101,37 +74,24 @@ class RecoveryEngine:
             if rec.payment.status == PaymentStatus.FAILED:
                 self.diagnose_and_decide(pid)
 
-    # ------------------------------------------------------------------ #
-    # Execution
-    # ------------------------------------------------------------------ #
     def recover_one(self, payment_id: str, force_failure: bool = False) -> RecoveryRecord:
         with self._lock:
             rec = self.diagnose_and_decide(payment_id)
-            # A verified recovery is terminal. Do not execute the same recovery
-            # action again or double-count recovered revenue.
             if rec.payment.status == PaymentStatus.RECOVERED and rec.outcome and rec.outcome.success:
                 return rec
             if rec.decision is None or rec.diagnosis is None or rec.policy is None:
                 return rec
-            outcome = executor.execute(
-                rec.payment, rec.diagnosis, rec.decision, rec.policy,
-                force_failure=force_failure, rng=self._rng,
-            )
+            outcome = executor.execute(rec.payment, rec.diagnosis, rec.decision, rec.policy,
+                                       force_failure=force_failure, rng=self._rng)
             rec.outcome = outcome
             rec.final_status = executor.final_status(outcome)
             if outcome.success:
                 rec.payment.status = PaymentStatus.RECOVERED
             self.global_audit.extend(outcome.audit)
-        # Persist outside the lock (network I/O); no-op unless Supabase is on.
         store.save_recovery([rec])
         return rec
 
     def confirm_recovery(self, payment_id: str, amount: float, source: str = "razorpay_webhook") -> RecoveryRecord:
-        """Mark a pending recovery as paid after a verified external event.
-
-        The amount is capped at the original payment amount so webhook data can
-        never inflate the merchant's recovered-revenue metric.
-        """
         with self._lock:
             rec = self.records.get(payment_id)
             if rec is None:
@@ -141,18 +101,10 @@ class RecoveryEngine:
             recovered = min(max(float(amount), 0.0), float(rec.payment.amount))
             now = datetime.now(timezone.utc).isoformat(timespec="seconds")
             if rec.outcome is None:
-                # This is defensive: normal flow creates an outcome before a link
-                # can be paid, but accepting a webhook without one keeps the
-                # endpoint idempotent and robust.
                 rec.outcome = executor.ActionOutcome(
-                    payment_id=payment_id,
-                    action=ActionType.SEND_PAYMENT_LINK,
-                    executed=True,
-                    success=True,
-                    recovered_amount=recovered,
-                    message=f"₹{recovered:,.0f} recovered; verified by Razorpay webhook",
-                    audit=[],
-                )
+                    payment_id=payment_id, action=ActionType.SEND_PAYMENT_LINK, executed=True,
+                    success=True, recovered_amount=recovered,
+                    message=f"₹{recovered:,.0f} recovered; verified by Razorpay webhook", audit=[])
             else:
                 rec.outcome.success = True
                 rec.outcome.recovered_amount = recovered
@@ -168,8 +120,6 @@ class RecoveryEngine:
         return rec
 
     def recover_batch(self, limit: Optional[int] = None) -> Dict:
-        """Run recovery across all eligible failed payments, prioritised by the
-        agent's recovery_priority (expected value first)."""
         self.diagnose_all()
         with self._lock:
             eligible = [
@@ -181,12 +131,9 @@ class RecoveryEngine:
             eligible.sort(key=lambda r: (r.decision.recovery_priority if r.decision else 0), reverse=True)
             if limit:
                 eligible = eligible[:limit]
-
             actions_executed = 0
             for rec in eligible:
-                outcome = executor.execute(
-                    rec.payment, rec.diagnosis, rec.decision, rec.policy, rng=self._rng,
-                )
+                outcome = executor.execute(rec.payment, rec.diagnosis, rec.decision, rec.policy, rng=self._rng)
                 rec.outcome = outcome
                 rec.final_status = executor.final_status(outcome)
                 if outcome.success:
@@ -194,36 +141,19 @@ class RecoveryEngine:
                 if outcome.executed:
                     actions_executed += 1
                 self.global_audit.extend(outcome.audit)
-
-        # Persist the whole batch outside the lock; no-op unless Supabase is on.
         store.save_recovery(eligible)
-
         m = self.metrics()
         return {
             "analyzed": len(eligible),
             "actions_executed": actions_executed,
             "successful_recoveries": m["recovered_count"],
             "recovered_amount": m["recovered_amount"],
-            "still_recoverable": m["recoverable_amount"],
+            "still_recoverable": m["remaining_recoverable_amount"],
             "escalated_amount": m["escalated_amount"],
             "abandoned_amount": m["abandoned_amount"],
         }
 
-    # ------------------------------------------------------------------ #
-    # Metrics & views
-    # ------------------------------------------------------------------ #
     def metrics(self) -> Dict:
-        """Return clearly separated revenue-recovery metrics.
-
-        Definitions:
-          * revenue_at_risk: gross amount of the original failed-payment
-            universe loaded at startup; it does not shrink when recovered.
-          * recoverable_total: amount of failed payments whose diagnosed
-            recovery probability meets RECOVERABLE_THRESHOLD.
-          * recovered_amount: amount actually marked recovered by the engine
-            (or confirmed by a Razorpay webhook).
-          * remaining_recoverable_amount: recoverable_total still outstanding.
-        """
         revenue_at_risk = 0.0
         recoverable_total = 0.0
         recovered_amount = 0.0
@@ -234,16 +164,9 @@ class RecoveryEngine:
         actions_executed = 0
         recoverable_count = 0
         remaining_recoverable_count = 0
-
-        # Use the startup snapshot for the at-risk universe so this metric is
-        # stable after recovery/reset and cannot accidentally become zero.
-        original_failed_ids = {
-            p.payment_id for p in self._initial_payments
-            if p.status == PaymentStatus.FAILED
-        }
+        original_failed_ids = {p.payment_id for p in self._initial_payments if p.status == PaymentStatus.FAILED}
         original_amounts = {p.payment_id: float(p.amount) for p in self._initial_payments}
         revenue_at_risk = sum(original_amounts.values())
-
         for payment_id in original_failed_ids:
             r = self.records.get(payment_id)
             if not r:
@@ -265,17 +188,13 @@ class RecoveryEngine:
                 escalated_amount += p.amount
             elif r.final_status == PaymentStatus.ABANDONED:
                 abandoned_amount += p.amount
-
         remaining_recoverable_amount = max(0.0, recoverable_total - recovered_amount)
         recovery_rate = recovered_amount / recoverable_total if recoverable_total else 0.0
-
         return {
-            # New explicit names for the dashboard/judges.
             "at_risk_amount": round(revenue_at_risk, 2),
             "recoverable_total": round(recoverable_total, 2),
             "recovered_amount": round(recovered_amount, 2),
             "remaining_recoverable_amount": round(remaining_recoverable_amount, 2),
-            # Backward-compatible aliases used by older UI/API clients.
             "revenue_at_risk": round(revenue_at_risk, 2),
             "recoverable_amount": round(remaining_recoverable_amount, 2),
             "recovered_count": recovered_count,
@@ -290,23 +209,17 @@ class RecoveryEngine:
 
     def queue(self, limit: int = 25) -> List[Dict]:
         self.diagnose_all()
-        pending = [
-            r for r in self.records.values()
-            if r.payment.status == PaymentStatus.FAILED and r.outcome is None and r.decision
-        ]
+        pending = [r for r in self.records.values() if r.payment.status == PaymentStatus.FAILED and r.outcome is None and r.decision]
         pending.sort(key=lambda r: r.decision.recovery_priority, reverse=True)
-        out = []
-        for r in pending[:limit]:
-            out.append({
-                "payment_id": r.payment.payment_id,
-                "amount": r.payment.amount,
-                "expected_recovery_value": r.decision.expected_recovery_value,
-                "recovery_probability": r.decision.recovery_probability,
-                "recovery_priority": r.decision.recovery_priority,
-                "action": r.decision.action.value,
-                "category": r.diagnosis.category.value if r.diagnosis else None,
-            })
-        return out
+        return [{
+            "payment_id": r.payment.payment_id,
+            "amount": r.payment.amount,
+            "expected_recovery_value": r.decision.expected_recovery_value,
+            "recovery_probability": r.decision.recovery_probability,
+            "recovery_priority": r.decision.recovery_priority,
+            "action": r.decision.action.value,
+            "category": r.diagnosis.category.value if r.diagnosis else None,
+        } for r in pending[:limit]]
 
     def list_payments(self, status: Optional[str] = None, limit: int = 100) -> List[Dict]:
         rows = []
@@ -331,11 +244,58 @@ class RecoveryEngine:
                 break
         return rows
 
+    def pipeline(self) -> Dict:
+        """Return counts for each stage of the recovery pipeline."""
+        self.diagnose_all()
+        counts = Counter()
+        for r in self.records.values():
+            if r.payment.status == PaymentStatus.FAILED or r.payment.status == PaymentStatus.RECOVERED:
+                counts["detected"] += 1
+            if r.diagnosis is not None:
+                counts["diagnosed"] += 1
+            if r.decision is not None:
+                counts["decided"] += 1
+            if r.policy is not None:
+                counts["policy_checked"] += 1
+            if r.outcome is not None and r.outcome.executed:
+                counts["executed"] += 1
+            if r.final_status == PaymentStatus.RECOVERED:
+                counts["recovered"] += 1
+            elif r.final_status == PaymentStatus.PENDING:
+                counts["pending"] += 1
+            elif r.final_status == PaymentStatus.ESCALATED:
+                counts["escalated"] += 1
+            elif r.final_status == PaymentStatus.ABANDONED:
+                counts["abandoned"] += 1
+            elif r.payment.status == PaymentStatus.FAILED:
+                counts["failed"] += 1
+        return dict(counts)
+
+    def category_breakdown(self) -> Dict:
+        """Return failed/recoverable payment counts and amounts by AI category."""
+        self.diagnose_all()
+        out: Dict[str, Dict[str, float | int]] = {}
+        for r in self.records.values():
+            if r.payment.status not in (PaymentStatus.FAILED, PaymentStatus.RECOVERED):
+                continue
+            if r.diagnosis is None:
+                continue
+            key = r.diagnosis.category.value
+            row = out.setdefault(key, {"count": 0, "amount": 0.0, "recoverable_count": 0, "recoverable_amount": 0.0})
+            row["count"] += 1
+            row["amount"] += float(r.payment.amount)
+            if r.decision and r.decision.recovery_probability >= RECOVERABLE_THRESHOLD:
+                row["recoverable_count"] += 1
+                row["recoverable_amount"] += float(r.payment.amount)
+        for row in out.values():
+            row["amount"] = round(float(row["amount"]), 2)
+            row["recoverable_amount"] = round(float(row["recoverable_amount"]), 2)
+        return out
+
     def detail(self, payment_id: str) -> RecoveryRecord:
         return self.diagnose_and_decide(payment_id)
 
 
-# Singleton engine for the app.
 _engine: Optional[RecoveryEngine] = None
 
 
@@ -344,14 +304,3 @@ def get_engine() -> RecoveryEngine:
     if _engine is None:
         _engine = RecoveryEngine()
     return _engine
-
-
-class RecoveryEngine:
-    # existing code...
-
-    def status(self):
-        return {
-            "status": "ready"
-        }
-
-    # rest of existing code...
