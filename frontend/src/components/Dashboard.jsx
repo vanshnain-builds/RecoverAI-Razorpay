@@ -27,9 +27,9 @@ export default function Dashboard({ version, onRefresh, onOpenPayment }) {
   const [batchError, setBatchError] = useState("");
 
   const load = () => {
-    api.metrics().then(setM).catch(() => {});
-    api.pipeline().then(setPipe).catch(() => {});
-    api.categories().then(setCats).catch(() => {});
+    api.metrics().then(setM).catch(() => setM({}));
+    api.pipeline().then(setPipe).catch(() => setPipe({}));
+    api.categories().then(setCats).catch(() => setCats({}));
   };
 
   useEffect(load, [version]);
@@ -51,7 +51,24 @@ export default function Dashboard({ version, onRefresh, onOpenPayment }) {
 
   if (!m || !pipe) return <div className="loading">Loading merchant data…</div>;
 
-  const maxPipe = Math.max(...PIPE_STAGES.map((s) => pipe[s.key] || 0), 1);
+  // Backend returns `executed`; keep the UI's existing `actions_executed` label.
+  const pipeline = { ...pipe, actions_executed: pipe.actions_executed ?? pipe.executed ?? 0 };
+  const maxPipe = Math.max(...PIPE_STAGES.map((s) => Number(pipeline[s.key] ?? 0)), 1);
+
+  const categoryRows = Object.entries(cats || {}).map(([key, value]) => {
+    // Current backend returns objects: { count, amount, recoverable_count, recoverable_amount }.
+    // Older/demo responses may return a plain number, so support both shapes.
+    if (typeof value === "number") {
+      return { key, count: value, amount: 0, recoverable_count: 0, recoverable_amount: 0 };
+    }
+    return {
+      key,
+      count: Number(value?.count ?? 0),
+      amount: Number(value?.amount ?? 0),
+      recoverable_count: Number(value?.recoverable_count ?? 0),
+      recoverable_amount: Number(value?.recoverable_amount ?? 0),
+    };
+  }).sort((a, b) => b.count - a.count);
 
   return (
     <div className="grid" style={{ gap: 16 }}>
@@ -68,9 +85,9 @@ export default function Dashboard({ version, onRefresh, onOpenPayment }) {
         <span><b>Remaining</b> = recoverable opportunity not yet recovered.</span>
       </div>
       <div className="grid metrics">
-        <Metric value={m.failed_count} label="Failed payments remaining" />
+        <Metric value={m.failed_count ?? 0} label="Failed payments remaining" />
         <Metric value={pct(m.recovery_rate)} label="Recovery rate" />
-        <Metric value={m.actions_executed} label="Recovery actions taken" />
+        <Metric value={m.actions_executed ?? 0} label="Recovery actions taken" />
       </div>
 
       <div className="grid cols-2">
@@ -78,7 +95,7 @@ export default function Dashboard({ version, onRefresh, onOpenPayment }) {
           <h3>AI Recovery Pipeline</h3>
           <div className="pipeline">
             {PIPE_STAGES.map((s) => {
-              const val = pipe[s.key] || 0;
+              const val = Number(pipeline[s.key] ?? 0);
               const w = 30 + (val / maxPipe) * 70;
               return (
                 <div className="pipe-row" key={s.key}>
@@ -117,27 +134,33 @@ export default function Dashboard({ version, onRefresh, onOpenPayment }) {
 
         <div className="card">
           <h3>Failure Categories</h3>
-          {cats ? (
+          {categoryRows.length > 0 ? (
             <table>
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th className="right">Payments</th>
+                  <th className="right">Amount</th>
+                </tr>
+              </thead>
               <tbody>
-                {Object.entries(cats)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([k, v]) => (
-                    <tr key={k}>
-                      <td>
-                        <span className={`pill ${k}`}>{k.replace(/_/g, " ")}</span>
-                      </td>
-                      <td className="right mono">{v}</td>
-                    </tr>
-                  ))}
+                {categoryRows.map((row) => (
+                  <tr key={row.key}>
+                    <td>
+                      <span className={`pill ${row.key}`}>{row.key.replace(/_/g, " ")}</span>
+                    </td>
+                    <td className="right mono">{row.count}</td>
+                    <td className="right mono">{rupees(row.amount)}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           ) : (
-            <div className="muted">—</div>
+            <div className="muted">No failure categories available.</div>
           )}
           <div className="section-gap muted" style={{ fontSize: 13 }}>
-            Escalated: {rupees(m.escalated_amount)} · Abandoned by policy:{" "}
-            {rupees(m.abandoned_amount)}
+            Escalated: {rupees(m.escalated_amount ?? 0)} · Abandoned by policy:{" "}
+            {rupees(m.abandoned_amount ?? 0)}
           </div>
         </div>
       </div>
