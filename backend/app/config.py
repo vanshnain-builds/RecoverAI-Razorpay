@@ -25,15 +25,10 @@ RECOVERAI_SIMULATE_COMPLETION = _b("RECOVERAI_SIMULATE_COMPLETION", "1")
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "").strip() or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
 
-NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "").strip()
-NVIDIA_API_URL = os.getenv("NVIDIA_API_URL", "https://integrate.api.nvidia.com/v1/chat/completions").strip().rstrip("/")
-RECOVERAI_LLM_MODEL = os.getenv("RECOVERAI_LLM_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b").strip()
-
-# Backward compatibility with the existing agent flag: the agent checks for an
-# LLM credential before loading the adapter. Keep the actual credential named
-# NVIDIA_API_KEY; this internal alias is never displayed or committed as a key.
-if NVIDIA_API_KEY and not os.getenv("OPENAI_API_KEY"):
-    os.environ["OPENAI_API_KEY"] = NVIDIA_API_KEY
+# OpenRouter provides the LLM API; NVIDIA Nemotron is selected as the model.
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
+OPENROUTER_API_URL = os.getenv("OPENROUTER_API_URL", "https://openrouter.ai/api/v1/chat/completions").strip().rstrip("/")
+RECOVERAI_LLM_MODEL = os.getenv("RECOVERAI_LLM_MODEL", "nvidia/nemotron-3.5-lightning:free").strip()
 
 
 def razorpay_enabled() -> bool:
@@ -53,7 +48,7 @@ def supabase_enabled() -> bool:
 
 
 def llm_enabled() -> bool:
-    return _b("RECOVERAI_USE_LLM", "0") and bool(NVIDIA_API_KEY)
+    return _b("RECOVERAI_USE_LLM", "0") and bool(OPENROUTER_API_KEY)
 
 
 def status() -> dict:
