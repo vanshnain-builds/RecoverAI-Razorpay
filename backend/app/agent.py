@@ -4,6 +4,7 @@ import os
 from typing import List
 from .dataset import CODE_TO_CATEGORY
 from .models import ActionType, Decision, Diagnosis, Evidence, FailureCategory, Payment
+
 BASE_RECOVERY_ODDS={FailureCategory.TEMPORARY:.82,FailureCategory.CUSTOMER_ACTION:.55,FailureCategory.METHOD_ISSUE:.60,FailureCategory.SUBSCRIPTION:.50,FailureCategory.UNKNOWN:.30,FailureCategory.HIGH_RISK:.10}
 
 def _diagnose_simulated(p:Payment)->Diagnosis:
@@ -44,14 +45,23 @@ def _decide_simulated(p:Payment,d:Diagnosis)->Decision:
     return Decision(payment_id=p.payment_id,action=action,recovery_probability=prob,expected_recovery_value=expected,recovery_priority=round(expected*(1-effort)*(1-p.risk_score*.5),2),rationale=rationale,source="simulated")
 
 def _llm_enabled()->bool:
-    return os.getenv("RECOVERAI_USE_LLM","0").strip().lower() in ("1","true","yes","on") and bool(os.getenv("NVIDIA_API_KEY","").strip())
+    """Enable the OpenRouter/Nemotron path when explicitly configured.
+
+    The API credential is OPENROUTER_API_KEY. Do not require NVIDIA_API_KEY:
+    Nemotron is being accessed through OpenRouter, not NVIDIA's direct endpoint.
+    """
+    return (
+        os.getenv("RECOVERAI_USE_LLM","0").strip().lower() in ("1","true","yes","on")
+        and bool(os.getenv("OPENROUTER_API_KEY","").strip())
+    )
 
 def diagnose(p:Payment)->Diagnosis:
     if _llm_enabled():
         try:
             from .llm_adapter import llm_diagnose
             return llm_diagnose(p)
-        except Exception:pass
+        except Exception:
+            pass
     return _diagnose_simulated(p)
 
 def decide(p:Payment,d:Diagnosis)->Decision:
@@ -59,5 +69,6 @@ def decide(p:Payment,d:Diagnosis)->Decision:
         try:
             from .llm_adapter import llm_decide
             return llm_decide(p,d)
-        except Exception:pass
+        except Exception:
+            pass
     return _decide_simulated(p,d)
