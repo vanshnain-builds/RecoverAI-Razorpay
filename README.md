@@ -1,487 +1,385 @@
-# RecoverAI — Autonomous Revenue Recovery
+# 🤖 RecoverAI
 
-> **AI-powered revenue recovery agent that detects failed payments, understands why revenue is at risk, decides the safest recovery action, executes it, and measures the money recovered.**
+### Autonomous AI-Powered Revenue Recovery
 
-RecoverAI is built for the **Razorpay AI Revenue Recovery** track. The core idea is simple: **a failed payment should not automatically mean lost revenue**.
+<p>
+  <img src="https://img.shields.io/badge/Razorpay-Hackathon-0C2451?style=for-the-badge&logo=razorpay&logoColor=white" alt="Razorpay Hackathon"/>
+  <img src="https://img.shields.io/badge/React-Frontend-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React"/>
+  <img src="https://img.shields.io/badge/Python-Backend-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python"/>
+  <img src="https://img.shields.io/badge/FastAPI-API-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI"/>
+  <img src="https://img.shields.io/badge/Supabase-Database-3ECF8E?style=for-the-badge&logo=supabase&logoColor=black" alt="Supabase"/>
+</p>
 
-Instead of giving a merchant another dashboard that only reports failed payments, RecoverAI creates an intelligent recovery workflow:
+> **Detect revenue at risk → Diagnose → Decide → Recover → Verify → Measure**
 
-**Detect → Diagnose → Decide → Validate → Execute → Verify → Measure**
+## 🌐 Live Demo
 
----
+### 🚀 Try RecoverAI
 
-## 🚀 Hackathon Pitch
+#### 👉 [RecoverAI Live Application](https://YOUR-FRONTEND-URL.onrender.com)
 
-RecoverAI is an autonomous revenue-recovery system for merchants.
+#### 👉 [Backend API](https://recoverai-razorpay-1.onrender.com)
 
-When a payment fails, RecoverAI doesn't just mark it as failed. It analyzes the payment context, including the failure reason, customer history, payment method, retry history and risk information. It then estimates the probability of successful recovery, selects an appropriate intervention, validates that the action follows recovery policies, executes the recovery workflow, and records the complete result in an audit trail.
+#### 👉 [API Documentation](https://recoverai-razorpay-1.onrender.com/docs)
 
-The goal is to turn **revenue leakage into measurable recovered revenue**.
-
-This directly matches the challenge requirement of detecting revenue at risk, determining the right intervention, executing a bounded recovery workflow, and showing measured money recovered across a batch.
-
-Razorpay's webhook system can provide asynchronous payment-state notifications such as `payment.failed`, while Razorpay's APIs can be used to retrieve payment information and perform supported payment operations. ([Razorpay][1])
-
----
-
-# 🎯 Problem
-
-Payment failures are not always permanent.
-
-A customer can have a failed payment because of:
-
-* Temporary bank/network problems
-* Payment-method issues
-* Insufficient funds
-* Customer action
-* Subscription failures
-* Other transient problems
-
-For a merchant, however, these failures can simply appear as:
-
-> **₹75,55,688 failed revenue**
-
-The problem is that traditional systems often stop at detection.
-
-They tell the merchant:
-
-> "This payment failed."
-
-But they don't necessarily answer:
-
-> **Why did it fail?**
-> **Can it be recovered?**
-> **What should we do next?**
-> **Which recovery action should happen first?**
-> **Did the recovery actually work?**
-> **How much money did we recover?**
-
-RecoverAI closes this loop.
+> 💡 **For judges:** Open the Live Application above to experience the RecoverAI dashboard and recovery workflow.
 
 ---
 
-# 💡 Solution
+## 📌 Project Overview
 
-RecoverAI introduces an **AI-assisted autonomous recovery agent** between payment failure and revenue recovery.
+> An AI-powered revenue recovery system that finds failed payments, understands why they failed, chooses the best recovery action, executes it safely, and tracks how much revenue was recovered.
 
-### The workflow
+## 🚀 What is RecoverAI?
+
+RecoverAI is our solution for the **AI Revenue Recovery** track of the Razorpay Hackathon.
+
+The basic problem we focused on is simple: when a payment fails, the merchant loses potential revenue. But not every failed payment should be treated in the same way.
+
+For example, a temporary network failure may be worth retrying, while a payment-method issue may need a different approach. A customer who has successfully paid many times before may also be a better recovery opportunity than a completely new customer.
+
+RecoverAI tries to automate this decision-making process.
+
+Instead of just showing a list of failed payments, the system goes through the complete recovery flow:
+
+**Detect → Diagnose → Decide → Validate → Execute → Measure**
+
+The goal is to help a merchant recover more money while keeping the recovery process controlled, explainable and auditable.
+
+---
+
+# 🎯 Problem We Are Solving
+
+Failed payments are not always permanent losses.
+
+A merchant can have revenue slipping away because of:
+
+- Temporary bank or network failures
+- Payment method problems
+- Customer-side actions
+- Failed subscription payments
+- Checkout/payment drop-offs
+- Other payment failures
+
+The difficult part is not only detecting that a payment failed.
+
+The real question is:
+
+> **"What should we do about this failed payment?"**
+
+Should we retry it?
+
+Should we ask the customer to try another payment method?
+
+Should we wait and retry later?
+
+Should we escalate it?
+
+And most importantly:
+
+> **Which failed payment should we try to recover first?**
+
+RecoverAI is designed to answer these questions automatically.
+
+---
+
+# 💡 Our Solution
+
+RecoverAI treats revenue recovery as a decision-making problem.
+
+For every failed payment, the system looks at the available information and creates a recovery decision.
+
+It considers things such as:
+
+- Payment amount
+- Failure reason
+- Payment method
+- Previous customer payment history
+- Previous retry attempts
+- Risk information
+- Failure category
+- Estimated probability of successful recovery
+
+Based on this information, RecoverAI recommends a suitable recovery action.
+
+The system then applies a policy check before executing the action.
+
+This gives us a complete chain:
 
 ```text
-                    PAYMENT FAILURE
-                           │
-                           ▼
-                    ┌─────────────┐
-                    │   DETECT    │
-                    │ Revenue at  │
-                    │    risk     │
-                    └──────┬──────┘
-                           │
-                           ▼
-                    ┌─────────────┐
-                    │  DIAGNOSE   │
-                    │ Understand  │
-                    │ failure     │
-                    └──────┬──────┘
-                           │
-                           ▼
-                    ┌─────────────┐
-                    │   DECIDE    │
-                    │ Select best │
-                    │ intervention│
-                    └──────┬──────┘
-                           │
-                           ▼
-                    ┌─────────────┐
-                    │   POLICY    │
-                    │ Safety &    │
-                    │ boundaries  │
-                    └──────┬──────┘
-                           │
-                           ▼
-                    ┌─────────────┐
-                    │   EXECUTE   │
-                    │ Recovery    │
-                    │ action      │
-                    └──────┬──────┘
-                           │
-                     ┌─────┴─────┐
-                     ▼           ▼
-                 SUCCESS      PENDING/
-                     │         FAILURE
-                     ▼           │
-               VERIFIED          ▼
-                 RECOVERY    NEXT ACTION
-                     │
-                     └─────┬─────┘
-                           ▼
-                    ┌─────────────┐
-                    │   MEASURE   │
-                    │ ₹ recovered │
-                    │ + audit log │
-                    └─────────────┘
-```
-
-This makes RecoverAI more than a payment dashboard.
-
-It is a **bounded revenue-recovery agent**.
+Failed Payment
+      ↓
+Detect
+      ↓
+Diagnose Failure
+      ↓
+Estimate Recovery Probability
+      ↓
+Choose Recovery Action
+      ↓
+Policy Validation
+      ↓
+Execute Recovery
+      ↓
+Success / Failure / Pending
+      ↓
+Update Metrics + Audit Trail
 
 ---
 
-# 🧠 Why an Agent Instead of a Dashboard?
+# 🧠 What Makes RecoverAI Different?
 
-A normal dashboard:
+A normal payment dashboard might tell a merchant:
 
-```text
-Payment failed
-       ↓
-Show merchant
-       ↓
-Merchant decides what to do
-```
+> "156 payments failed."
 
-RecoverAI:
+RecoverAI tries to go one step further:
 
-```text
-Payment failed
-       ↓
-Agent investigates
-       ↓
-Agent diagnoses
-       ↓
-Agent calculates recovery opportunity
-       ↓
-Agent chooses intervention
-       ↓
-Policy validates action
-       ↓
-Agent executes
-       ↓
-Agent verifies result
-       ↓
-Metrics update
-```
+> "These payments failed, this is why they probably failed, these are the ones worth recovering, this is the recommended action, this is the expected recovery value, and this is what happened after the action."
 
-The agent is therefore responsible for the **decision loop**, while deterministic policies provide boundaries around what it is allowed to do.
+So the focus is not just **payment monitoring**.
+
+It is **autonomous revenue recovery**.
 
 ---
 
-# 🏗️ System Architecture
-
-```text
-                         ┌─────────────────────┐
-                         │      Razorpay       │
-                         │                     │
-                         │ Payments / Webhooks │
-                         └──────────┬──────────┘
-                                    │
-                              Payment events
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────┐
-│                    RecoverAI Backend                    │
-│                                                         │
-│  ┌─────────────┐       ┌─────────────────────────────┐ │
-│  │   Source    │──────▶│      Recovery Engine        │ │
-│  └─────────────┘       │                             │ │
-│                        │ Detect → Diagnose → Decide  │ │
-│                        └──────────────┬──────────────┘ │
-│                                       │                 │
-│                                       ▼                 │
-│                        ┌─────────────────────────────┐ │
-│                        │       Policy Engine        │ │
-│                        │                             │ │
-│                        │ Risk limits                 │ │
-│                        │ Retry limits                │ │
-│                        │ Action validation           │ │
-│                        └──────────────┬──────────────┘ │
-│                                       │                 │
-│                                       ▼                 │
-│                        ┌─────────────────────────────┐ │
-│                        │     Recovery Executor       │ │
-│                        └──────────────┬──────────────┘ │
-│                                       │                 │
-│                           ┌───────────┼───────────┐     │
-│                           ▼           ▼           ▼     │
-│                        Success     Pending     Failure  │
-│                           │           │           │     │
-│                           └───────────┼───────────┘     │
-│                                       ▼                 │
-│                              Audit + Metrics            │
-└───────────────────────┬─────────────────────────────────┘
-                        │
-                        ▼
-              ┌─────────────────────┐
-              │      Supabase       │
-              │      PostgreSQL     │
-              │                     │
-              │ Payments            │
-              │ Recovery actions    │
-              │ Audit events        │
-              └─────────────────────┘
-                        │
-                        ▼
-              ┌─────────────────────┐
-              │   React Frontend    │
-              │                     │
-              │ Command Center      │
-              │ Recovery Queue      │
-              │ Investigation       │
-              │ Audit Trail         │
-              │ Ask RecoverAI       │
-              └─────────────────────┘
-```
-
----
-
-# 🔄 Core Recovery Loop
+# 🏗️ How RecoverAI Works
 
 ## 1. Detect
 
-RecoverAI identifies failed payments and revenue at risk.
+The system first identifies failed payments.
+
+Each payment contains information that can be used for analysis.
 
 Example:
 
 ```text
 Payment: RZP-10014
 Amount: ₹2,999
-Status: Failed
+Method: Card
 Failure: network_error
+Previous successful payments: 10
+Retry count: 0
 ```
-
-The system doesn't treat every failure identically.
 
 ---
 
 ## 2. Diagnose
 
-The system analyzes the available payment context.
+RecoverAI analyzes the payment failure and tries to understand its category.
 
 For example:
 
 ```text
-Failure:
 network_error
-
-Customer history:
-10 successful payments
-1 previous failure
-
-Risk:
-Low
-
-Diagnosis:
-temporary_failure
-
-Confidence:
-87%
+      ↓
+Temporary failure
 ```
 
-This gives the recovery engine context rather than blindly retrying every payment.
+The diagnosis also includes a confidence score.
+
+For example:
+
+```text
+Diagnosis: Temporary failure
+Confidence: 87%
+```
+
+This allows the system to explain why a particular recovery action was selected.
 
 ---
 
-# 3. Decide
+## 3. Decide
 
-The agent evaluates potential recovery actions.
+After diagnosing the failure, RecoverAI calculates whether the payment looks worth recovering.
 
-Example:
+It estimates:
+
+**P(recover)**
+
+and:
+
+**Expected Recovery = Payment Amount × Recovery Probability**
+
+For example:
 
 ```text
+Payment amount:       ₹2,999
 Recovery probability: 91%
 
-Recommended action:
-retry_payment
-
 Expected recovery:
-₹2,729
-
-Priority:
-₹2,523
+₹2,999 × 0.91 ≈ ₹2,729
 ```
 
-The queue can therefore prioritize opportunities according to expected recovered value rather than simply sorting by transaction amount.
+This helps the system prioritize recovery opportunities.
 
 ---
 
-# 4. Policy Validation
+# 📊 Recovery Queue
 
-This is an important part of the system.
+RecoverAI does not simply process failed payments randomly.
 
-AI should not have unlimited authority to execute arbitrary financial actions.
+The Recovery Queue is ordered using the expected recovered value, while considering risk and operational effort.
 
-RecoverAI therefore introduces a policy layer.
+For example:
 
 ```text
-AI decision
-     ↓
-Policy validation
-     ↓
+Payment       Amount       p(recover)       Expected ₹
+-------------------------------------------------------
+RZP-10014     ₹2,999          91%              ₹2,729
+RZP-10021     ₹4,500          72%              ₹3,240
+RZP-10037     ₹1,800          80%              ₹1,440
+```
+
+This means the agent can decide:
+
+> **What should I recover first?**
+
+rather than only:
+
+> **Is this payment recoverable?**
+
+---
+
+# 🤖 AI Agent
+
+The AI part of RecoverAI is responsible for helping with the recovery decision.
+
+The agent follows a structured process rather than blindly executing an action.
+
+### Agent flow
+
+```text
+Observe
+   ↓
+Understand the payment
+   ↓
+Diagnose the failure
+   ↓
+Evaluate recovery opportunity
+   ↓
+Select an action
+   ↓
+Check policy
+   ↓
+Execute
+   ↓
+Observe result
+   ↓
+Record outcome
+```
+
+This is important because an autonomous system should not simply call an API and hope for the best.
+
+It needs to know:
+
+* What happened?
+* Why did it happen?
+* What action makes sense?
+* Is that action allowed?
+* What happened after execution?
+
+---
+
+# 🔐 Safe Recovery With Policy Checks
+
+We added a policy layer before recovery actions are executed.
+
+The idea is that the AI should have boundaries.
+
+For example, the system can check:
+
+* Whether the payment is eligible for recovery
+* Whether the retry limit has been reached
+* Whether the selected action is allowed
+* Whether the operation is considered safe
+* Whether additional escalation is required
+
+The recovery flow therefore becomes:
+
+```text
+AI Recommendation
+       ↓
+Policy Validation
+       ↓
 Allowed?
-   /   \
- YES    NO
-  │      │
-  ▼      ▼
-Execute  Escalate
+   ↙       ↘
+ YES       NO
+ ↓          ↓
+Execute    Stop / Escalate
 ```
 
-Example boundaries can include:
-
-* Maximum retry count
-* Maximum recovery attempts
-* Risk threshold
-* Supported recovery action
-* Stopping conditions
-* Escalation requirements
-
-This gives the system a **bounded autonomy** model.
+This prevents the AI from becoming an uncontrolled automation system.
 
 ---
 
-# 5. Execute
+# 💳 Recovery Actions
 
-Once the action passes policy validation, RecoverAI executes the recovery workflow.
+Depending on the payment situation, the system can recommend recovery actions such as:
 
-Possible actions include:
+### Retry Payment
 
-```text
-retry_payment
-request_new_payment_method
-send_recovery_link
-escalate_to_support
-stop_retry
-```
+Useful for temporary failures such as network or transient bank issues.
 
-The exact action depends on the diagnosis and recovery policy.
+### Payment Method Recovery
 
----
+Used when the current payment method may be the problem.
 
-# 6. Verify
+### Subscription Recovery
 
-A recovery action is not considered successful merely because the action was initiated.
+Used for failed subscription-related payments.
 
-RecoverAI separates:
+### Customer Action
 
-### Success
+Used when the customer needs to take an action to complete the payment.
 
-```text
-Payment successfully recovered
-₹2,999 recovered
-```
-
-### Pending
-
-```text
-Recovery initiated
-Waiting for payment confirmation
-```
-
-### Failure
-
-```text
-Recovery attempt failed
-No revenue recovered
-```
-
-This distinction is important because **initiated recovery ≠ recovered revenue**.
+The important part is that the system does not assume that one recovery action works for every failure.
 
 ---
 
-# 📊 Metrics
+# 📈 Metrics
 
-RecoverAI deliberately separates the major revenue metrics.
+The dashboard clearly separates different revenue states.
 
 ## At Risk
 
-**Original failed-payment amount.**
+The original amount associated with failed payments.
 
-Example:
-
-```text
-₹75,55,688
-At risk · original failed revenue
-```
-
-This represents the total failed revenue opportunity entering the system.
-
----
+This represents the revenue that is currently at risk.
 
 ## Recoverable
 
-**AI-identified opportunity above the recovery threshold.**
-
-```text
-₹X
-Recoverable · identified opportunity
-```
-
-This is not the same as total failed revenue.
-
-It represents the portion that the recovery engine considers worth attempting to recover.
-
----
+The amount that RecoverAI identifies as a realistic recovery opportunity based on its recovery logic and threshold.
 
 ## Recovered
 
-**Verified successful recovery outcomes.**
-
-```text
-₹X
-Recovered · verified outcome
-```
-
-This is the most important outcome metric.
-
-It should increase only when the recovery result is actually confirmed.
-
----
+The amount from recovery actions that were successfully completed and verified.
 
 ## Remaining
 
-**Recoverable revenue that has not yet been recovered.**
+Recoverable revenue that has not yet been successfully recovered.
+
+The relationship is approximately:
 
 ```text
-₹X
-Remaining recoverable
-```
-
-The relationship is:
-
-```text
+At Risk
+   ↓
 Recoverable
-     │
-     ├── Recovered
-     │
-     └── Remaining
+   ↓
+ ┌───────────────┐
+ ↓               ↓
+Recovered     Remaining
 ```
 
-This makes the dashboard much easier for a merchant or judge to understand.
+This makes the dashboard easier for a merchant to understand.
 
 ---
 
-# 📈 Recovery Rate
+# 📊 Dashboard
 
-RecoverAI also displays recovery rate.
+The Command Center provides a quick overview of the current recovery situation.
 
-Conceptually:
-
-```text
-Recovery Rate =
-Verified Recovered Revenue
-────────────────────────────
-Recoverable Revenue
-```
-
-This gives the merchant an outcome-based measurement rather than simply counting recovery attempts.
-
----
-
-# 🖥️ Product Interface
-
-## Command Center
-
-The Command Center is the primary merchant dashboard.
-
-It provides:
+It shows metrics such as:
 
 * At-risk revenue
 * Recoverable revenue
@@ -489,506 +387,319 @@ It provides:
 * Remaining recoverable revenue
 * Failed payments
 * Recovery rate
-* Recovery actions
-* Recovery pipeline
-* Failure categories
+* Number of recovery actions taken
 
-The purpose is to answer one question quickly:
-
-> **How much revenue is at risk, and how much of it are we actually recovering?**
-
-### Screenshot
-
-![RecoverAI Command Center](docs/screenshots/command-center.png)
+It also shows the recovery pipeline and failure categories.
 
 ---
 
-# 🔎 Investigation
+# 🔎 Investigation Page
 
-The Investigation page gives the merchant a deeper explanation of an individual failed payment.
+The Investigation page allows the merchant to look at an individual payment in more detail.
 
-Example:
+For a payment, the merchant can see:
 
-```text
-PAYMENT RZP-10014
+* Payment amount
+* Payment method
+* Failure code
+* Customer payment history
+* Preferred payment method
+* Retry count
+* Risk score
+* AI diagnosis
+* Recovery probability
+* Recommended action
+* Expected recovery value
 
-Amount
-₹2,999
-
-Method
-card
-
-Failure code
-network_error
-
-Customer history
-10 successful / 1 failed
-
-Risk score
-0.15
-```
-
-Then RecoverAI provides:
+For example:
 
 ```text
-AI Diagnosis
-temporary failure
+Payment: RZP-10014
 
-Confidence
+Amount: ₹2,999
+Failure: network_error
+
+AI Diagnosis:
+Temporary bank/payment network failure
+
+Confidence:
 87%
 
-Reason:
-Temporary bank/payment network failure
-```
-
-The recovery decision is shown alongside it.
-
-```text
-Recovery probability
+Recovery probability:
 91%
 
-Recommended action
+Recommended action:
 retry_payment
 
-Expected recovery
+Expected recovery:
 ₹2,729
 ```
 
-The interface also exposes the execution sequence:
-
-```text
-detect
-   ↓
-diagnose
-   ↓
-decide
-   ↓
-policy
-   ↓
-execute
-   ↓
-recover_success
-```
-
-### Screenshot
-
-![RecoverAI Investigation](docs/screenshots/investigation.png)
+This makes the AI decision explainable instead of just showing a result.
 
 ---
 
-# 📋 Recovery Queue
+# ⚡ Recovery Execution
 
-The Recovery Queue is where the agent decides **what to recover first**.
+The merchant can execute a recommended recovery action directly from the Investigation page.
 
-Rather than displaying failed payments randomly, the queue can rank opportunities according to expected recovery value while accounting for risk and operational effort.
+After execution, RecoverAI records the result.
 
-Example:
+Possible outcomes include:
 
-| Payment   | Amount | Category          | Action        | Recovery Probability | Expected ₹ |
-| --------- | -----: | ----------------- | ------------- | -------------------: | ---------: |
-| RZP-10014 | ₹2,999 | Temporary failure | Retry         |                  91% |     ₹2,729 |
-| RZP-10021 | ₹5,499 | Payment issue     | New method    |                  76% |     ₹4,179 |
-| RZP-10031 | ₹1,999 | Customer action   | Recovery link |                  68% |     ₹1,359 |
+```text
+SUCCESS
+FAILURE
+PENDING
+```
 
-The important concept is:
+### Success
 
-> **RecoverAI decides what to recover first, not just whether a payment is recoverable.**
+The payment was successfully recovered.
 
-### Screenshot
+### Failure
 
-![RecoverAI Recovery Queue](docs/screenshots/recovery-queue.png)
+The recovery attempt did not succeed.
+
+### Pending
+
+The recovery process has been initiated but the final result is not available yet.
+
+The UI updates the payment state accordingly.
 
 ---
 
 # 🧾 Audit Trail
 
-Every recovery decision should be explainable.
+Every important step is recorded in the Audit Trail.
 
-RecoverAI records events such as:
+For example:
 
 ```text
-DETECT
-Payment failure detected
-
-DIAGNOSE
-Diagnosed as temporary_failure
-
-DECIDE
-Selected retry_payment
-
-POLICY
-Policy validation PASSED
-
-EXECUTE
-Recovery initiated
-
-RECOVER_SUCCESS
-Payment successfully recovered
+detect
+↓
+diagnose
+↓
+decide
+↓
+policy
+↓
+execute
+↓
+recover_success
 ```
 
-This provides an audit trail for:
+An example could look like:
 
-* Debugging
-* Merchant trust
-* Operational review
-* AI explainability
-* Recovery analysis
+```text
+Payment failure detected
+
+Diagnosed as temporary_failure
+Confidence: 87%
+
+Selected action: retry_payment
+Recovery probability: 91%
+
+Policy validation: PASSED
+
+Recovery initiated via retry_payment
+
+Payment successful
+₹2,999 recovered
+```
+
+This gives the merchant visibility into what the system did.
+
+It also makes the autonomous process easier to debug and review.
 
 ---
 
-# 🤖 Ask RecoverAI
+# 💬 Ask RecoverAI
 
-The interface also provides an AI assistant for interacting with the recovery system.
+RecoverAI also includes an AI chat interface.
 
-Example questions:
+A merchant can ask questions about the recovery data instead of manually going through every table.
+
+For example:
 
 ```text
-Which payment should I recover first?
+Which payments should I recover first?
 
 Why is this payment considered recoverable?
 
-How much revenue is currently at risk?
+How much revenue is still at risk?
+
+Which failure category has the highest amount?
 
 Why did the agent choose retry_payment?
-
-Which failure category has the highest recovery opportunity?
-
-How much revenue has been recovered?
 ```
 
-This turns the dashboard from a static reporting tool into an interactive operational interface.
-
----
-
-# 💳 Razorpay Integration
-
-RecoverAI is designed to work with Razorpay payment data.
-
-Razorpay provides APIs for retrieving payment information and supported payment operations. ([Razorpay][2])
-
-Razorpay also provides webhooks that asynchronously notify applications about payment events.
-
-For example:
-
-```text
-Razorpay
-   │
-   │ payment.failed
-   ▼
-RecoverAI Webhook
-   │
-   ▼
-Store payment event
-   │
-   ▼
-Diagnose
-   │
-   ▼
-Recovery decision
-```
-
-Razorpay specifically documents `payment.failed` as an event that can be used to receive notifications about failed payments. ([Razorpay][1])
-
-### Why Webhooks?
-
-Without webhooks:
-
-```text
-RecoverAI → "Did payment fail?"
-RecoverAI → "Did payment fail?"
-RecoverAI → "Did payment fail?"
-```
-
-With webhooks:
-
-```text
-Payment changes
-      ↓
-Razorpay sends event
-      ↓
-RecoverAI receives event
-      ↓
-RecoverAI processes it
-```
-
-This makes the architecture event-driven.
-
-### Razorpay Webhook Endpoint
-
-Once the backend is deployed, the webhook URL should point to your **public backend endpoint**, not the frontend.
-
-For example:
-
-```text
-https://YOUR-BACKEND.onrender.com/api/webhooks/razorpay
-```
-
-Use the exact webhook route implemented by your backend.
-
-Razorpay requires webhook endpoints to be publicly accessible and recommends HTTPS. Webhook URLs cannot simply be localhost URLs. ([Razorpay][3])
-
-### Recommended Razorpay events
-
-For this project, the important payment events to consider are:
-
-```text
-payment.failed
-payment.authorized
-payment.captured
-order.paid
-```
-
-Razorpay documents these payment/order webhook events and their payloads. ([Razorpay][4])
-
-### Test Mode
-
-For the hackathon demonstration, use **Razorpay Test Mode**.
-
-Razorpay provides separate Test and Live API keys, and test-mode webhook events can be used to validate the integration before going live. ([Razorpay][5])
-
-**Important:** Never expose Razorpay secrets in the frontend or commit them to GitHub.
+The goal is to make the recovery system easier to interact with.
 
 ---
 
 # 🗄️ Supabase
 
-RecoverAI uses Supabase as the persistent data layer.
+We use **Supabase** as the database layer.
 
-Supabase provides a PostgreSQL database and can be accessed programmatically from the application. ([Supabase][6])
+The project can store information such as:
 
-The database stores information such as:
+* Payments
+* Recovery decisions
+* Recovery outcomes
+* Audit events
+* Recovery-related data
+
+The database schema is included in:
 
 ```text
-Payments
-Recovery decisions
-Recovery actions
-Audit events
+db/supabase_schema.sql
 ```
 
-Conceptually:
+The backend connects to Supabase through environment variables rather than hardcoding credentials.
+
+---
+
+# 💳 Razorpay Integration
+
+RecoverAI is designed around the Razorpay payment/revenue recovery workflow.
+
+For development and demonstration, the project also supports **synthetic payment data**.
+
+This is intentional because it allows us to demonstrate the complete recovery workflow without depending entirely on live customer payments.
+
+The architecture allows Razorpay data to enter through backend integrations/webhooks and then pass through the same recovery pipeline.
 
 ```text
-Razorpay Events
-       │
-       ▼
+Razorpay
+   ↓
+Webhook / API
+   ↓
 RecoverAI Backend
-       │
-       ▼
-    Supabase
-       │
- ┌─────┼──────┐
- ▼     ▼      ▼
-Payments Audit Recovery
-       │
-       ▼
-   Frontend
+   ↓
+Diagnosis
+   ↓
+Recovery Decision
+   ↓
+Policy
+   ↓
+Recovery Action
+   ↓
+Database
+   ↓
+Dashboard
 ```
-
-This allows the application to persist recovery state instead of depending entirely on in-memory demo data.
 
 ---
 
-# 🧠 AI Layer
+# 🔔 Webhooks
 
-The AI layer is responsible for reasoning about the recovery opportunity.
+For a production version, payment events can be sent to RecoverAI using Razorpay webhooks.
 
-A typical decision flow is:
+For example, when a payment event occurs:
 
 ```text
-Payment information
-        +
-Failure information
-        +
-Customer history
-        +
-Retry history
-        +
-Risk
-        ↓
-AI Diagnosis
-        ↓
-Recovery probability
-        ↓
-Recommended action
+Razorpay
+   ↓
+Webhook
+   ↓
+/api/webhooks/razorpay
+   ↓
+Validate event
+   ↓
+Store/update payment
+   ↓
+Run recovery analysis
 ```
 
-The AI should be used where judgment is valuable.
+This allows RecoverAI to react to payment events instead of requiring the merchant to manually refresh the dashboard.
 
-Deterministic code should handle things that must be predictable.
-
-### AI is useful for
-
-* Diagnosing failure context
-* Selecting an intervention
-* Explaining decisions
-* Prioritizing recovery opportunities
-* Conversational analysis
-
-### Deterministic logic is useful for
-
-* Monetary calculations
-* Recovery thresholds
-* Retry limits
-* State transitions
-* Policy enforcement
-* Audit logging
-* API validation
-
-This hybrid design is intentional.
-
-> **AI provides judgment; deterministic policies provide control.**
+Webhook secrets and API credentials should be stored as environment variables.
 
 ---
 
-# 🔐 Safety & Bounded Autonomy
-
-Because RecoverAI operates around financial workflows, unrestricted AI execution would be unsafe.
-
-The architecture therefore follows:
+# 🏛️ System Architecture
 
 ```text
-AI recommendation
-       ↓
-Policy validation
-       ↓
-Bounded action
-       ↓
-Execution
-       ↓
-Verification
+                    ┌──────────────────────┐
+                    │       Razorpay       │
+                    │  Payments / Events   │
+                    └──────────┬───────────┘
+                               │
+                         API / Webhook
+                               │
+                               ▼
+                    ┌──────────────────────┐
+                    │   RecoverAI Backend  │
+                    │       FastAPI        │
+                    └──────────┬───────────┘
+                               │
+                ┌──────────────┼──────────────┐
+                │              │              │
+                ▼              ▼              ▼
+          Detection       AI Diagnosis    Policy Engine
+                │              │              │
+                └──────────────┼──────────────┘
+                               ▼
+                       Recovery Decision
+                               │
+                               ▼
+                       Recovery Executor
+                               │
+                    ┌──────────┴───────────┐
+                    │                      │
+                    ▼                      ▼
+              Recovery Result        Audit Trail
+                    │                      │
+                    └──────────┬───────────┘
+                               ▼
+                         Supabase DB
+                               │
+                               ▼
+                    ┌──────────────────────┐
+                    │    React Frontend    │
+                    │     Dashboard        │
+                    └──────────────────────┘
 ```
-
-The agent should not be allowed to:
-
-* Execute unlimited retries
-* Ignore risk thresholds
-* Perform unsupported actions
-* Continue retrying indefinitely
-* Treat an initiated action as a successful recovery
-
-Stopping conditions are therefore a fundamental part of the architecture.
 
 ---
 
-# 🔄 Recovery State Machine
+# 🧰 Tech Stack
 
-RecoverAI treats recovery as a state machine.
-
-```text
-FAILED
-  │
-  ▼
-DIAGNOSED
-  │
-  ▼
-RECOVERABLE
-  │
-  ▼
-ACTION_SELECTED
-  │
-  ▼
-POLICY_VALIDATED
-  │
-  ▼
-RECOVERY_INITIATED
-  │
-  ├───────────────┐
-  ▼               ▼
-SUCCESS         PENDING
-  │               │
-  ▼               ▼
-RECOVERED      WAIT / NEXT ACTION
-                  │
-                  ▼
-                FAILED
-```
-
-This prevents ambiguous states.
-
-For example:
-
-**Recovery initiated**
-
-does not automatically become:
-
-**Recovered**
-
-until the payment outcome is verified.
-
----
-
-# 📊 Failure Categories
-
-RecoverAI groups payment failures into understandable categories.
-
-Examples:
-
-```text
-Temporary failure
-Customer action
-Payment method issue
-Subscription failure
-Unknown
-```
-
-This allows merchants to identify where their revenue leakage is concentrated.
-
-Instead of seeing:
-
-```text
-156 random failed payments
-```
-
-they can see:
-
-```text
-Temporary failures       52
-Customer action          38
-Payment method issues    25
-Subscription failures   22
-Unknown                  10
-```
-
-This is much more actionable.
-
----
-
-# 🛠️ Technology Stack
-
-## Frontend
+### Frontend
 
 * React
 * Vite
 * JavaScript
 * CSS
 
-## Backend
+### Backend
 
 * Python
 * FastAPI
-* Uvicorn
+* Pydantic
 
-## Database
+### Database
 
 * Supabase
 * PostgreSQL
 
-## Payments
+### AI
+
+* LLM-based decision support
+* Rule/policy layer
+* Recovery scoring
+
+### Payment Platform
 
 * Razorpay APIs
 * Razorpay Webhooks
 
-## AI
+### Deployment
 
-* LLM-compatible architecture
-* AI diagnosis
-* AI-assisted recovery decisions
-* Conversational assistant
-
-## Deployment
-
-* GitHub
-* Render
+* Frontend: Vercel / similar frontend hosting
+* Backend: Render
+* Database: Supabase
 
 ---
 
@@ -997,143 +708,307 @@ This is much more actionable.
 ```text
 RecoverAI-Razorpay/
 │
-├── README.md
-├── BLUEPRINT.md
-├── demo.html
-├── run.sh
-│
 ├── backend/
-│   ├── .env.example
-│   ├── requirements.txt
+│   ├── app/
+│   │   ├── agent.py
+│   │   ├── chat.py
+│   │   ├── config.py
+│   │   ├── dataset.py
+│   │   ├── engine.py
+│   │   ├── executor.py
+│   │   ├── llm_adapter.py
+│   │   ├── main.py
+│   │   ├── models.py
+│   │   ├── policy.py
+│   │   ├── razorpay_client.py
+│   │   ├── source.py
+│   │   └── store.py
 │   │
-│   └── app/
-│       ├── __init__.py
-│       ├── agent.py
-│       ├── chat.py
-│       ├── config.py
-│       ├── dataset.py
-│       ├── engine.py
-│       ├── executor.py
-│       ├── llm_adapter.py
-│       ├── main.py
-│       ├── models.py
-│       ├── policy.py
-│       ├── razorpay_client.py
-│       ├── source.py
-│       └── store.py
+│   ├── requirements.txt
+│   └── .env.example
 │
 ├── frontend/
-│   ├── package.json
-│   ├── vite.config.js
-│   ├── index.html
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── AuditTrail.jsx
+│   │   │   ├── Chat.jsx
+│   │   │   ├── Dashboard.jsx
+│   │   │   ├── Investigation.jsx
+│   │   │   └── Queue.jsx
+│   │   │
+│   │   ├── App.jsx
+│   │   ├── api.js
+│   │   ├── main.jsx
+│   │   └── styles.css
 │   │
-│   └── src/
-│       ├── App.jsx
-│       ├── api.js
-│       ├── main.jsx
-│       ├── styles.css
-│       │
-│       └── components/
-│           ├── AuditTrail.jsx
-│           ├── Chat.jsx
-│           ├── Dashboard.jsx
-│           ├── Investigation.jsx
-│           └── Queue.jsx
+│   ├── package.json
+│   └── vite.config.js
 │
-└── db/
-    └── supabase_schema.sql
+├── db/
+│   └── supabase_schema.sql
+│
+├── demo.html
+├── BLUEPRINT.md
+├── README.md
+├── run.sh
+└── .gitignore
 ```
 
 ---
 
-# ⚙️ Local Setup
+# 🖥️ Screenshots
 
-## 1. Clone
+## Command Center
 
-```bash
-git clone https://github.com/vanshnain-builds/RecoverAI-Razorpay.git
-cd RecoverAI-Razorpay
-```
+The main dashboard gives the merchant an overview of the revenue recovery situation.
 
-## 2. Backend
+<img width="1917" height="905" alt="image" src="https://github.com/user-attachments/assets/709308f8-2570-42d3-b5dd-dea5323541a1" />
+<img width="1917" height="910" alt="image" src="https://github.com/user-attachments/assets/0427886b-e872-48d0-a51b-4111e7d94c3d" />
 
-```bash
-cd backend
 
-python -m venv .venv
-```
 
-### Windows
+---
 
-```powershell
-.venv\Scripts\activate
-```
+## Recovery Queue
 
-### Install dependencies
+The queue ranks recovery opportunities by expected recovered value.
 
-```bash
-pip install -r requirements.txt
-```
+<img width="1917" height="903" alt="image" src="https://github.com/user-attachments/assets/b6d7c330-d5d1-42f2-8a6c-b4277e3f7900" />
+<img width="1917" height="901" alt="image" src="https://github.com/user-attachments/assets/f690f972-5f05-4345-8047-e88325c1c5a7" />
 
-### Environment variables
 
-Create:
+
+---
+
+## Investigation
+
+The Investigation page explains an individual payment and the AI's recovery decision.
+
+<img width="1917" height="911" alt="image" src="https://github.com/user-attachments/assets/7adcd01b-39e3-438e-85ce-feca3e39f701" />
+<img width="1917" height="895" alt="image" src="https://github.com/user-attachments/assets/f160ff30-f5f1-4383-ba5a-f83591e69906" />
+<img width="1917" height="910" alt="image" src="https://github.com/user-attachments/assets/2dfeab17-6971-476c-a043-bcc21c1096e9" />
+
+
+
+
+
+---
+
+## Audit Trail
+
+The Audit Trail shows what happened at every stage of the recovery process.
+
+<img width="1917" height="903" alt="image" src="https://github.com/user-attachments/assets/21b8f39f-c60d-4b26-9330-00b1cf27ede3" />
+<img width="1917" height="902" alt="image" src="https://github.com/user-attachments/assets/c5f334d6-2c3e-49cc-a3f4-2d9ff50754e9" />
+
+
+
+---
+
+## Ask RecoverAI
+
+The chat interface allows merchants to ask questions about their recovery data.
+
+<img width="1917" height="908" alt="image" src="https://github.com/user-attachments/assets/8dfac23f-aaa4-43ed-8f1e-54c52ca410ec" />
+
+
+---
+
+# 🔄 Demo Flow
+
+The easiest way to understand RecoverAI is to follow one payment.
+
+### Step 1 — Failed payment appears
+
+A payment fails because of a particular failure reason.
+
+### Step 2 — RecoverAI diagnoses it
+
+The system analyzes the available payment and customer information.
+
+### Step 3 — Recovery probability is calculated
+
+RecoverAI estimates the likelihood of recovering the payment.
+
+### Step 4 — Recovery action is selected
+
+The system chooses an appropriate action.
+
+For example:
 
 ```text
-backend/.env
+retry_payment
 ```
 
-based on:
+### Step 5 — Policy validation
+
+Before execution, the action is checked against the recovery policy.
+
+### Step 6 — Recovery is executed
+
+The recovery action is initiated.
+
+### Step 7 — Outcome is recorded
+
+The payment becomes:
+
+```text
+Recovered
+```
+
+or:
+
+```text
+Failed
+```
+
+or:
+
+```text
+Pending
+```
+
+### Step 8 — Metrics change
+
+The dashboard reflects the new recovery result.
+
+### Step 9 — Audit event is created
+
+The entire action is recorded in the Audit Trail.
+
+---
+
+# 🔁 Reset Demo
+
+The project includes a **Reset Demo** option.
+
+This is useful during demonstrations because the dataset can be restored to its original state before running the recovery flow again.
+
+This allows judges to see the same end-to-end workflow repeatedly without manually rebuilding the demo data.
+
+---
+
+# 📊 Example Recovery Calculation
+
+Suppose we have:
+
+```text
+Payment amount = ₹10,000
+Recovery probability = 80%
+```
+
+The expected recovery is:
+
+```text
+₹10,000 × 0.80
+= ₹8,000
+```
+
+If another payment has:
+
+```text
+Payment amount = ₹5,000
+Recovery probability = 95%
+```
+
+Its expected recovery is:
+
+```text
+₹5,000 × 0.95
+= ₹4,750
+```
+
+RecoverAI can use this kind of calculation to help prioritize recovery opportunities.
+
+The important idea is that **recovery priority is based on potential value, not simply payment amount.**
+
+---
+
+# 🧪 Synthetic Data
+
+The demo uses synthetic payment data so that the complete recovery workflow can be demonstrated safely.
+
+The synthetic dataset contains different types of failed payments with different characteristics.
+
+This allows us to demonstrate scenarios such as:
+
+* Temporary failures
+* Customer action failures
+* Payment method issues
+* Subscription failures
+* Unknown failures
+* Different payment amounts
+* Different customer histories
+* Different recovery probabilities
+
+The same processing pipeline can later work with real payment-event data.
+
+---
+
+# 🔒 Security Considerations
+
+Sensitive credentials should never be committed to GitHub.
+
+Use environment variables for:
+
+```text
+RAZORPAY_KEY_ID
+RAZORPAY_KEY_SECRET
+RAZORPAY_WEBHOOK_SECRET
+SUPABASE_URL
+SUPABASE_KEY
+LLM_API_KEY
+```
+
+The repository should only contain an example environment file such as:
 
 ```text
 backend/.env.example
 ```
 
-Typical variables include:
-
-```env
-SUPABASE_URL=
-SUPABASE_KEY=
-
-RAZORPAY_KEY_ID=
-RAZORPAY_KEY_SECRET=
-
-RAZORPAY_WEBHOOK_SECRET=
-
-LLM_API_KEY=
-```
-
-**Do not commit `.env`.**
-
-Only `.env.example` should be committed.
+Actual secrets should be configured in the deployment environment.
 
 ---
 
-# ▶️ Run Backend
+# ⚙️ Running Locally
 
-From the backend directory:
+## Backend
+
+Go to the backend directory:
+
+```bash
+cd backend
+```
+
+Create and activate a virtual environment:
+
+```bash
+python -m venv .venv
+```
+
+Windows:
+
+```powershell
+.venv\Scripts\activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Start FastAPI:
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-The API should then be available at:
-
-```text
-http://localhost:8000
-```
-
-FastAPI also provides interactive API documentation at:
-
-```text
-http://localhost:8000/docs
-```
-
-Render uses the same FastAPI/Uvicorn model for deployment. ([Render][7])
+The backend should then be available locally.
 
 ---
 
-# ▶️ Run Frontend
+## Frontend
 
 Open another terminal:
 
@@ -1143,710 +1018,432 @@ npm install
 npm run dev
 ```
 
-Vite will provide the local frontend URL.
-
-During development, the frontend can use the Vite proxy to communicate with:
-
-```text
-/api
-```
-
-For production, configure:
-
-```env
-VITE_API_URL=https://YOUR-BACKEND.onrender.com
-```
-
-so requests become:
-
-```text
-https://YOUR-BACKEND.onrender.com/api/health
-https://YOUR-BACKEND.onrender.com/api/metrics
-https://YOUR-BACKEND.onrender.com/api/queue
-```
+The Vite development server will provide the frontend URL.
 
 ---
 
-# ☁️ Deployment
+# 🌐 Deployment
 
-## Backend — Render
-
-Create a **Render Web Service** connected to your GitHub repository.
-
-Typical configuration:
+The project can be split into three services:
 
 ```text
-Root Directory:
-backend
+Frontend
+   ↓
+Vercel
 
-Build Command:
-pip install -r requirements.txt
-
-Start Command:
-uvicorn app.main:app --host 0.0.0.0 --port $PORT
-```
-
-Render's FastAPI documentation uses this Uvicorn production pattern. ([Render][7])
-
-Then add your environment variables in:
-
-```text
+Backend
+   ↓
 Render
-→ Service
-→ Environment
+
+Database
+   ↓
+Supabase
 ```
 
-Do not put secrets into GitHub.
+The frontend uses an environment variable for the backend URL.
+
+Example:
+
+```text
+VITE_API_URL=https://your-backend.onrender.com
+```
+
+The backend contains the Supabase and Razorpay configuration through environment variables.
 
 ---
 
-# 🌐 Frontend — Render
+# 🌱 Environment Variables
 
-Create another Render service as a **Static Site**.
-
-Typical configuration:
+Backend:
 
 ```text
-Root Directory:
-frontend
+SUPABASE_URL=
+SUPABASE_KEY=
 
-Build Command:
-npm install && npm run build
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
 
-Publish Directory:
-dist
+LLM_PROVIDER=
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
 ```
 
-Then add:
+Frontend:
 
-```env
-VITE_API_URL=https://YOUR-BACKEND.onrender.com
+```text
+VITE_API_URL=
 ```
 
-The frontend then communicates with the deployed FastAPI backend.
-
-Render supports static sites separately from server-side web services. ([Render][8])
+Do not put secret keys inside the frontend.
 
 ---
 
-# 🔗 Frontend → Backend Connection
+# 🧩 API Endpoints
 
-The production architecture is:
-
-```text
-User
- │
- ▼
-React Frontend
- │
- │ HTTPS
- ▼
-Render FastAPI Backend
- │
- ├──────────────┐
- ▼              ▼
-Supabase      Razorpay
-PostgreSQL    APIs/Webhooks
-```
-
-The frontend should **never directly contain**:
+Some of the main backend endpoints are:
 
 ```text
-RAZORPAY_KEY_SECRET
-SUPABASE_SERVICE_ROLE_KEY
-LLM_SECRET_KEY
+GET  /api/health
+GET  /api/metrics
+GET  /api/pipeline
+GET  /api/categories
+GET  /api/queue
+GET  /api/payments
+GET  /api/payments/{id}
+POST /api/payments/{id}/recover
+POST /api/recover-batch
+GET  /api/audit
+POST /api/chat
+POST /api/reset
 ```
 
-Those belong on the backend.
+These APIs connect the frontend dashboard with the recovery engine.
 
 ---
 
-# 🔔 Webhook Architecture
+# 🧠 Why AI Instead of Only Rules?
 
-After deploying the backend, configure Razorpay:
-
-```text
-Razorpay Dashboard
-        ↓
-Account & Settings
-        ↓
-Webhooks
-        ↓
-Add New Webhook
-```
-
-Set:
+A pure rules-based system could say:
 
 ```text
-Webhook URL:
-https://YOUR-BACKEND.onrender.com/<your-webhook-route>
+if network_error:
+    retry
 ```
 
-Select the relevant payment events.
+But real payment recovery can involve multiple signals.
 
-Razorpay's official setup flow is through **Account & Settings → Webhooks → Add New Webhook**. ([Razorpay][3])
-
-For security, configure a webhook secret and validate the webhook signature on the backend. Razorpay recommends validating webhook requests and testing the integration before relying on it. ([Razorpay][9])
-
----
-
-# 🧪 Demo Mode
-
-RecoverAI includes synthetic/demo data so the complete recovery workflow can be demonstrated without depending on live customer transactions.
-
-This is particularly useful during a hackathon.
-
-A judge can see:
-
-```text
-Failed payments
-      ↓
-AI diagnosis
-      ↓
-Recovery queue
-      ↓
-Recovery action
-      ↓
-Success / pending / failure
-      ↓
-Recovered revenue
-      ↓
-Audit trail
-```
-
-The **Reset Demo** functionality restores the initial demonstration state so the complete workflow can be shown repeatedly.
-
----
-
-# 🧑‍⚖️ Judge Demo Flow
-
-A recommended 2–3 minute live demonstration:
-
-### Step 1 — Command Center
-
-Start on the dashboard.
-
-Explain:
-
-> "This is RecoverAI's Command Center. It gives the merchant a real-time view of revenue at risk, recoverable opportunity, verified recovered revenue and remaining opportunity."
-
----
-
-### Step 2 — Recovery Queue
-
-Open:
-
-```text
-Recovery Queue
-```
-
-Explain:
-
-> "Instead of treating all failed payments equally, RecoverAI prioritizes them based on expected recovery value, risk and the selected intervention."
-
----
-
-### Step 3 — Investigation
-
-Select a payment.
-
-Show:
+RecoverAI can consider:
 
 ```text
 Failure reason
++
 Customer history
-Risk score
-AI diagnosis
++
+Payment method
++
+Retry history
++
+Amount
++
+Risk
++
 Recovery probability
-Recommended action
-Expected recovery
++
+Policy constraints
 ```
 
-Explain:
+This makes the decision more contextual.
 
-> "The agent doesn't blindly retry. It first diagnoses the failure and determines whether a recovery action is justified."
+The AI also provides a diagnosis and explanation that can be shown to the merchant.
+
+At the same time, the policy layer provides boundaries around what can actually be executed.
 
 ---
 
-### Step 4 — Explainability
+# 🚧 Challenges We Faced
 
-Show:
+## 1. Connecting Frontend and Backend
+
+One of the early problems was making the frontend communicate correctly with the deployed FastAPI backend.
+
+The local development setup uses Vite's proxy, while the production frontend needs the deployed backend URL.
+
+We solved this by using:
 
 ```text
-detect
-diagnose
-decide
-policy
-execute
-recover_success
+VITE_API_URL
 ```
 
-Explain:
-
-> "Every important decision is visible and auditable."
+so the same frontend code can work in both development and production.
 
 ---
 
-### Step 5 — Execute
+## 2. Backend Deployment
 
-Click the recovery action.
+The backend initially worked locally but required configuration changes for cloud deployment.
 
-Show:
+Environment variables, the application start command, and the correct API URL had to be configured separately for the deployed environment.
 
-```text
-Recovery initiated
-```
+---
 
-Then demonstrate:
+## 3. Database Integration
+
+Moving from in-memory demo data toward Supabase required separating the application logic from the storage layer.
+
+This makes it easier to use the same recovery engine with persistent payment and audit data.
+
+---
+
+## 4. Recovery State Management
+
+A recovery action cannot simply be treated as successful every time.
+
+We needed to distinguish:
 
 ```text
 Success
-```
-
-or:
-
-```text
+Failure
 Pending
 ```
 
-or:
-
-```text
-Failure
-```
-
-Explain:
-
-> "The system distinguishes between an action being initiated and revenue actually being recovered."
+This makes the recovery metrics more realistic and prevents the dashboard from showing incorrect recovered revenue.
 
 ---
 
-### Step 6 — Metrics
+## 5. Safe Autonomous Actions
 
-Return to Command Center.
+Giving an AI permission to execute payment-related actions without boundaries would be risky.
 
-Show:
+We therefore added a policy validation stage before execution.
 
-```text
-At Risk
-Recoverable
-Recovered
-Remaining
-Recovery Rate
-```
-
-Explain:
-
-> "This is the key business outcome. We're not measuring AI activity—we're measuring recovered revenue."
-
----
-
-### Step 7 — Audit Trail
-
-Open:
-
-```text
-Audit Trail
-```
-
-Explain:
-
-> "Every recovery attempt and decision is recorded, giving the merchant an auditable history of what the agent did and why."
-
----
-
-# 🏆 Why RecoverAI Fits the Razorpay Challenge
-
-The challenge asks builders to create an agent that can:
-
-```text
-Detect revenue at risk
-        ↓
-Determine intervention
-        ↓
-Execute bounded recovery
-        ↓
-Show measured recovered money
-```
-
-RecoverAI maps directly onto that requirement:
-
-| Challenge Requirement  | RecoverAI                   |
-| ---------------------- | --------------------------- |
-| Detect revenue at risk | Failed payment detection    |
-| Diagnose problem       | AI diagnosis                |
-| Determine intervention | Recovery decision engine    |
-| Execute workflow       | Recovery executor           |
-| Bounded execution      | Policy engine               |
-| Handle outcomes        | Success / pending / failure |
-| Measure revenue        | Recovery metrics            |
-| Batch prioritization   | Recovery Queue              |
-| Explain decisions      | Investigation               |
-| Auditability           | Audit Trail                 |
-| Payment integration    | Razorpay API/webhooks       |
-| Persistent state       | Supabase                    |
+The AI recommends the action, but the system checks whether the action is allowed before executing it.
 
 ---
 
 # 💰 Business Value
 
-For merchants, even a small recovery improvement can have significant impact.
+The main value of RecoverAI is straightforward:
 
-Imagine:
+**recover revenue that might otherwise be lost.**
 
-```text
-₹10,00,000 failed revenue
-```
+For a merchant with a large number of failed payments, even a small improvement in recovery rate can represent significant additional revenue.
 
-If RecoverAI identifies:
+RecoverAI also reduces the amount of manual work required to investigate failed payments.
 
-```text
-₹6,00,000 recoverable opportunity
-```
-
-and successfully recovers:
+Instead of manually checking every failed payment:
 
 ```text
-₹3,00,000
-```
-
-then the system has transformed previously lost revenue into:
-
-```text
-₹3,00,000 recovered revenue
-```
-
-The important metric is therefore not:
-
-> "How many AI decisions did we make?"
-
-It is:
-
-> **"How much revenue did we successfully recover?"**
-
----
-
-# 📈 Future Improvements
-
-The current architecture can be extended into a production-grade system.
-
-## 1. Real-time Razorpay Event Processing
-
-Move from synthetic events to continuous webhook-driven payment events.
-
-```text
-payment.failed
+Failed Payments
       ↓
-RecoverAI
+AI prioritization
       ↓
-Automatic diagnosis
+Best opportunities first
       ↓
-Recovery decision
+Recovery
+      ↓
+Measured revenue
 ```
+
+This makes the recovery process more efficient.
 
 ---
 
-## 2. Better Recovery Prediction
+# 📈 Scalability
 
-Train a dedicated recovery-probability model using historical merchant data.
+The architecture is designed so that the system can move from a demo to a production workflow.
 
-Potential features:
+Instead of synthetic data:
 
 ```text
-Payment amount
-Failure code
-Payment method
-Customer history
-Time of day
-Retry count
-Previous recovery behaviour
-Subscription status
-Risk signals
+Razorpay events
 ```
 
----
+can become the source.
 
-## 3. Adaptive Recovery
-
-Instead of using one static retry strategy:
+Instead of in-memory storage:
 
 ```text
-Attempt 1
+Supabase / PostgreSQL
+```
+
+can provide persistent storage.
+
+Instead of manually triggering recovery:
+
+```text
+Webhooks + background jobs
+```
+
+can trigger the process automatically.
+
+A production architecture could therefore look like:
+
+```text
+Razorpay
    ↓
-Outcome
+Webhooks
    ↓
-Update probability
+FastAPI
    ↓
-Choose next action
+Queue / Background Worker
+   ↓
+AI Recovery Engine
+   ↓
+Policy Engine
+   ↓
+Recovery Action
+   ↓
+Supabase
+   ↓
+Dashboard
 ```
-
-The agent can adapt its strategy based on the latest outcome.
 
 ---
 
-## 4. Merchant-Specific Policies
+# 🔮 Future Improvements
 
-Different merchants may require different rules.
+There are several areas where RecoverAI can be extended.
 
-For example:
+### Real-time Razorpay Events
+
+Automatically process new payment events through webhooks.
+
+### Better Recovery Models
+
+Train a model using historical recovery outcomes to improve recovery probability estimates.
+
+### Smarter Customer Segmentation
+
+Use customer behavior and historical payment patterns to select more personalized recovery actions.
+
+### Automated Retry Scheduling
+
+Instead of immediately retrying every eligible payment, determine the best time for retrying.
+
+### More Recovery Channels
+
+The system could eventually coordinate:
+
+* Payment retries
+* Payment-method changes
+* Customer notifications
+* Subscription recovery
+* Invoice follow-ups
+
+### Advanced Analytics
+
+Add dashboards showing:
+
+* Recovery rate by failure type
+* Recovery rate by payment method
+* Revenue recovered over time
+* Average recovery value
+* Best-performing recovery actions
+* Customer-level recovery trends
+
+---
+
+# 🎯 What We Built for the Hackathon
+
+For this hackathon, our focus was not simply to build another payment dashboard.
+
+We built a working concept around the complete revenue recovery loop:
 
 ```text
-Merchant A
-Maximum retries = 2
-
-Merchant B
-Maximum retries = 3
-
-Merchant C
-High-value payments require manual approval
+Detect
+  ↓
+Understand
+  ↓
+Decide
+  ↓
+Validate
+  ↓
+Execute
+  ↓
+Measure
 ```
+
+The project demonstrates how an AI agent can move from identifying a revenue problem to taking a bounded action and measuring the result.
+
+That is the main idea behind RecoverAI.
 
 ---
 
-## 5. Recovery Experimentation
+# 🏆 Why RecoverAI Fits the AI Revenue Recovery Track
 
-The system could eventually compare strategies:
+The track asks teams to build an agent that can:
+
+* Detect revenue at risk
+* Determine the right intervention
+* Execute a bounded recovery workflow
+* Show measured money recovered
+* Include stopping rules
+* Maintain an audit trail
+
+RecoverAI is built around exactly this workflow.
+
+The system does not stop at:
 
 ```text
-Strategy A → Retry
-Strategy B → Payment link
-Strategy C → Alternative method
+"Payment failed."
 ```
 
-and measure:
+It continues through:
 
 ```text
-Recovery rate
-Revenue recovered
-Customer response
-Operational cost
+Payment failed
+      ↓
+Why did it fail?
+      ↓
+Can it be recovered?
+      ↓
+What action should we take?
+      ↓
+Is the action allowed?
+      ↓
+Execute
+      ↓
+Did we recover the money?
+      ↓
+Record the result
 ```
+
+This gives the project a complete recovery loop rather than only a prediction or analytics dashboard.
 
 ---
 
-## 6. Real-Time Analytics
+# 👥 Team
 
-Future dashboards could show:
+Built for the Razorpay Hackathon.
+
+**Project:** RecoverAI
+**Track:** AI Revenue Recovery
+
+---
+
+# 📚 References & Technologies
+
+* [Razorpay](https://razorpay.com/)
+* [Razorpay Documentation](https://razorpay.com/docs/)
+* [Razorpay Webhooks](https://razorpay.com/docs/webhooks/)
+* [Supabase](https://supabase.com/)
+* [FastAPI](https://fastapi.tiangolo.com/)
+* [React](https://react.dev/)
+* [Vite](https://vite.dev/)
+* [PostgreSQL](https://www.postgresql.org/)
+
+---
+
+# 📌 Final Summary
+
+RecoverAI is an autonomous revenue recovery system built to help merchants turn failed payments into recoverable revenue.
+
+It combines payment information, customer history, failure diagnosis, recovery probability, action selection, policy validation, execution, and outcome tracking into one workflow.
+
+The key idea is simple:
+
+> **Don't just tell the merchant that revenue was lost. Help recover it.**
 
 ```text
-Revenue recovered today
-Recovery rate
-Best-performing intervention
-Top failure category
-Revenue at risk
-Revenue recovered by category
+                    RECOVERAI
+
+        Detect revenue at risk
+                  ↓
+          Diagnose the cause
+                  ↓
+       Estimate recovery chance
+                  ↓
+        Select best action
+                  ↓
+        Validate with policy
+                  ↓
+           Execute safely
+                  ↓
+        Measure the outcome
+                  ↓
+        Record audit trail
+                  ↓
+          Recover revenue
 ```
-
----
-
-# 🔐 Security Considerations
-
-Financial systems require careful handling of secrets and customer data.
-
-RecoverAI follows the principle:
-
-```text
-Frontend
-   │
-   │ Public configuration only
-   ▼
-Backend
-   │
-   ├── Razorpay secrets
-   ├── Supabase server credentials
-   ├── LLM credentials
-   └── Business policies
-```
-
-Secrets should be stored as environment variables and never committed to GitHub.
-
-Razorpay's documentation explicitly recommends securely storing API credentials and notes that the secret is only displayed when the key is generated. ([Razorpay][5])
-
----
-
-# ⚠️ Current Scope & Limitations
-
-RecoverAI is a hackathon prototype rather than a production payment-recovery platform.
-
-The architecture demonstrates the complete decision and recovery workflow using the available demo/synthetic data and integration points.
-
-Before production deployment, additional work would be required around:
-
-* Production-grade authentication
-* Fine-grained authorization
-* Comprehensive webhook signature validation
-* Idempotent event processing
-* Retry scheduling
-* Distributed job processing
-* Rate limiting
-* Monitoring
-* Secret management
-* Extensive payment-provider testing
-* Compliance requirements
-* Human approval workflows for sensitive actions
-
-This distinction is intentional: the hackathon demonstrates the **agentic recovery architecture and measurable recovery workflow** without pretending that a prototype should automatically control real production funds.
-
----
-
-# 🧩 Design Philosophy
-
-RecoverAI follows five principles:
-
-### 1. Detect before acting
-
-Don't execute blindly.
-
-### 2. Diagnose before retrying
-
-Understand the likely reason for failure.
-
-### 3. AI recommends, policy controls
-
-AI provides judgment while deterministic rules enforce boundaries.
-
-### 4. Initiated ≠ recovered
-
-Only verified outcomes count toward recovered revenue.
-
-### 5. Every action should be explainable
-
-The merchant should be able to understand what happened.
-
----
-
-# 🎬 One-Line Explanation
-
-> **RecoverAI is an autonomous revenue-recovery agent that turns failed payments into recoverable opportunities by detecting risk, diagnosing failures, selecting safe interventions, executing bounded recovery actions, verifying outcomes, and measuring the revenue actually recovered.**
-
----
-
-# 🧠 The Big Idea
-
-Traditional payment systems focus on:
-
-```text
-Did the payment succeed?
-```
-
-RecoverAI focuses on:
-
-```text
-The payment failed.
-
-Why?
-
-Can we recover it?
-
-What's the safest action?
-
-Should we act now?
-
-Did it work?
-
-How much money did we recover?
-
-What should happen next?
-```
-
-That is the difference between a **payment-status dashboard** and an **autonomous revenue-recovery system**.
-
----
-
-# 🔗 Important Official Resources
-
-### Razorpay
-
-[Razorpay Documentation](https://razorpay.com/docs/?utm_source=chatgpt.com)
-
-[Razorpay Payments API](https://razorpay.com/docs/api/payments/?utm_source=chatgpt.com)
-
-[Razorpay Webhooks](https://razorpay.com/docs/webhooks/?utm_source=chatgpt.com)
-
-[Razorpay Payment Webhook Events](https://razorpay.com/docs/webhooks/payments/?utm_source=chatgpt.com)
-
-[Razorpay Webhook Setup](https://razorpay.com/docs/payments/dashboard/account-settings/webhooks/?utm_source=chatgpt.com)
-
----
-
-### Supabase
-
-[Supabase Documentation](https://supabase.com/docs?utm_source=chatgpt.com)
-
-[Supabase Database Documentation](https://supabase.com/docs/guides/database/overview?utm_source=chatgpt.com)
-
-[Supabase PostgreSQL Connection Guide](https://supabase.com/docs/guides/database/connecting-to-postgres?utm_source=chatgpt.com)
-
----
-
-### Render
-
-[Render Documentation](https://render.com/docs?utm_source=chatgpt.com)
-
-[Deploy FastAPI on Render](https://render.com/docs/deploy-fastapi?utm_source=chatgpt.com)
-
----
-
-# 👨‍💻 Repository
-
-**RecoverAI — Autonomous Revenue Recovery**
-
-GitHub:
-
-[RecoverAI-Razorpay GitHub Repository](https://github.com/vanshnain-builds/RecoverAI-Razorpay?utm_source=chatgpt.com)
-
----
-
-# ❤️ Final Pitch
-
-**RecoverAI doesn't just tell merchants that revenue was lost.**
-
-It finds the revenue that can still be recovered.
-
-It understands the reason behind the failure, evaluates the recovery opportunity, selects an appropriate intervention, validates that intervention against safety policies, executes the recovery workflow, verifies the result, and records the complete decision trail.
-
-The result is a closed-loop system:
-
-```text
-                 ┌──────────────┐
-                 │    Detect    │
-                 └──────┬───────┘
-                        ↓
-                 ┌──────────────┐
-                 │   Diagnose   │
-                 └──────┬───────┘
-                        ↓
-                 ┌──────────────┐
-                 │    Decide    │
-                 └──────┬───────┘
-                        ↓
-                 ┌──────────────┐
-                 │    Policy    │
-                 └──────┬───────┘
-                        ↓
-                 ┌──────────────┐
-                 │    Execute   │
-                 └──────┬───────┘
-                        ↓
-                 ┌──────────────┐
-                 │    Verify    │
-                 └──────┬───────┘
-                        ↓
-                 ┌──────────────┐
-                 │    Measure   │
-                 └──────┬───────┘
-                        ↓
-                 💰 RECOVERED REVENUE
-```
-
-> **RecoverAI — Detect the leakage. Understand the failure. Recover the revenue.**
-
-[1]: https://razorpay.com/docs/webhooks/?utm_source=chatgpt.com "About Webhooks | Razorpay Docs"
-[2]: https://razorpay.com/docs/api/payments/?utm_source=chatgpt.com "Razorpay Docs"
-[3]: https://razorpay.com/docs/payments/dashboard/account-settings/webhooks/?preferred-country=IN&utm_source=chatgpt.com "Webhooks | Razorpay Docs"
-[4]: https://razorpay.com/docs/webhooks/payments/?utm_source=chatgpt.com "Payments Webhook Events | Razorpay Docs"
-[5]: https://razorpay.com/docs/payments/quickstart/?utm_source=chatgpt.com "Quickstart Guide | Razorpay Docs"
-[6]: https://supabase.com/docs/guides/database/overview?utm_source=chatgpt.com "Database | Supabase Docs"
-[7]: https://render.com/docs/deploy-fastapi?utm_source=chatgpt.com "Deploy a FastAPI App – Render Docs"
-[8]: https://render.com/docs/your-first-deploy?utm_source=chatgpt.com "Your First Render Deploy – Render Docs"
-[9]: https://razorpay.com/docs/webhooks/validate-test/?preferred-country=IN&utm_source=chatgpt.com "Validate and Test Webhooks | Razorpay Docs"
+**RecoverAI — From failed payments to recovered revenue.**
