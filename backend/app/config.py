@@ -1,11 +1,5 @@
-"""Central configuration — reads secrets and feature toggles from the environment.
-
-Values should be supplied by backend/.env locally or the hosting provider's
-secret/environment-variable store in production. Integration paths remain
-optional so RecoverAI can still run in demo mode.
-"""
+"""Central configuration for RecoverAI."""
 from __future__ import annotations
-
 import os
 
 try:
@@ -28,12 +22,12 @@ RAZORPAY_FETCH_DAYS = int(os.getenv("RAZORPAY_FETCH_DAYS", "90") or "90")
 RECOVERAI_NOTIFY = _b("RECOVERAI_NOTIFY", "0")
 RECOVERAI_SIMULATE_COMPLETION = _b("RECOVERAI_SIMULATE_COMPLETION", "1")
 
-# Supabase persistence. Keep the service key server-side only.
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
-SUPABASE_SERVICE_KEY = (
-    os.getenv("SUPABASE_SERVICE_KEY", "").strip()
-    or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
-)
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "").strip() or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "").strip()
+NVIDIA_API_URL = os.getenv("NVIDIA_API_URL", "https://integrate.api.nvidia.com/v1/chat/completions").strip().rstrip("/")
+RECOVERAI_LLM_MODEL = os.getenv("RECOVERAI_LLM_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b").strip()
 
 
 def razorpay_enabled() -> bool:
@@ -53,9 +47,7 @@ def supabase_enabled() -> bool:
 
 
 def llm_enabled() -> bool:
-    return _b("RECOVERAI_USE_LLM", "0") and bool(
-        os.getenv("ANTHROPIC_API_KEY") or os.getenv("OPENAI_API_KEY")
-    )
+    return _b("RECOVERAI_USE_LLM", "0") and bool(NVIDIA_API_KEY)
 
 
 def status() -> dict:
@@ -64,5 +56,6 @@ def status() -> dict:
         "razorpay_mode": razorpay_mode_effective() if razorpay_enabled() else None,
         "webhook": "configured" if RAZORPAY_WEBHOOK_SECRET else "not_configured",
         "persistence": "supabase" if supabase_enabled() else "memory",
-        "reasoning": "llm" if llm_enabled() else "simulated",
+        "reasoning": "llm:nemotron-3.5-lightning" if llm_enabled() else "simulated",
+        "llm_model": RECOVERAI_LLM_MODEL if llm_enabled() else None,
     }
