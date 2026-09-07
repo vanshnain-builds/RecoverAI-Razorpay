@@ -1,16 +1,16 @@
-"""NVIDIA Nemotron 3.5 Lightning adapter for RecoverAI.
+"""OpenRouter adapter for RecoverAI using NVIDIA Nemotron 3.5 Lightning.
 
 The LLM is used for reasoning only: diagnosis, recovery-action selection and
 explanations. Deterministic policy/execution code remains responsible for
 safety limits, recovered amounts and actual payment execution.
 
-Provider: NVIDIA hosted NIM API
-Endpoint: https://integrate.api.nvidia.com/v1/chat/completions
-Model: nvidia/nemotron-3.5-lightning-30b-a3b
+Provider: OpenRouter
+Endpoint: https://openrouter.ai/api/v1/chat/completions
+Model: nvidia/nemotron-3.5-lightning:free (configurable)
 
 The adapter uses the existing `requests` dependency, so no extra SDK is needed.
-If the NVIDIA call fails or returns malformed output, the recovery agent falls
-back to its deterministic reasoning engine.
+If the OpenRouter call fails or returns malformed output, the recovery agent
+falls back to its deterministic reasoning engine.
 """
 from __future__ import annotations
 
@@ -23,10 +23,10 @@ import requests
 
 from .models import ActionType, Decision, Diagnosis, Evidence, FailureCategory, Payment
 
-NVIDIA_API_URL = os.getenv(
-    "NVIDIA_API_URL", "https://integrate.api.nvidia.com/v1/chat/completions"
+OPENROUTER_API_URL = os.getenv(
+    "OPENROUTER_API_URL", "https://openrouter.ai/api/v1/chat/completions"
 ).rstrip("/")
-DEFAULT_MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b"
+DEFAULT_MODEL = "nvidia/nemotron-3.5-lightning:free"
 
 DIAGNOSIS_SYSTEM_PROMPT = """\
 You are RecoverAI's payment-failure diagnosis expert for an Indian payments
@@ -89,19 +89,20 @@ def _extract_json(text: str) -> Dict[str, Any]:
 
 
 def _client_call(system: str, user: str) -> Dict[str, Any]:
-    """Call NVIDIA's hosted OpenAI-compatible NIM endpoint."""
-    api_key = os.getenv("NVIDIA_API_KEY", "").strip()
+    """Call OpenRouter's OpenAI-compatible chat-completions endpoint."""
+    api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
     if not api_key:
-        raise RuntimeError("NVIDIA_API_KEY is not configured")
+        raise RuntimeError("OPENROUTER_API_KEY is not configured")
 
     model = os.getenv("RECOVERAI_LLM_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
 
     response = requests.post(
-        NVIDIA_API_URL,
+        OPENROUTER_API_URL,
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "Accept": "application/json",
+            "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "http://localhost:5173"),
+            "X-Title": os.getenv("OPENROUTER_APP_NAME", "RecoverAI"),
         },
         json={
             "model": model,
@@ -113,7 +114,6 @@ def _client_call(system: str, user: str) -> Dict[str, Any]:
             "top_p": 0.7,
             "max_tokens": 800,
             "stream": False,
-            "chat_template_kwargs": {"enable_thinking": False},
         },
         timeout=45,
     )
@@ -122,12 +122,12 @@ def _client_call(system: str, user: str) -> Dict[str, Any]:
     payload = response.json()
     choices = payload.get("choices") or []
     if not choices:
-        raise RuntimeError("NVIDIA returned no choices")
+        raise RuntimeError("OpenRouter returned no choices")
 
     message = choices[0].get("message") or {}
     text = message.get("content")
     if not isinstance(text, str) or not text.strip():
-        raise RuntimeError("NVIDIA returned an empty response")
+        raise RuntimeError("OpenRouter returned an empty response")
 
     return _extract_json(text)
 
