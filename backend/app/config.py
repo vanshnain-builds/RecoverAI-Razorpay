@@ -29,6 +29,12 @@ NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "").strip()
 NVIDIA_API_URL = os.getenv("NVIDIA_API_URL", "https://integrate.api.nvidia.com/v1/chat/completions").strip().rstrip("/")
 RECOVERAI_LLM_MODEL = os.getenv("RECOVERAI_LLM_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b").strip()
 
+# Backward compatibility with the existing agent flag: the agent checks for an
+# LLM credential before loading the adapter. Keep the actual credential named
+# NVIDIA_API_KEY; this internal alias is never displayed or committed as a key.
+if NVIDIA_API_KEY and not os.getenv("OPENAI_API_KEY"):
+    os.environ["OPENAI_API_KEY"] = NVIDIA_API_KEY
+
 
 def razorpay_enabled() -> bool:
     return bool(RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET)
