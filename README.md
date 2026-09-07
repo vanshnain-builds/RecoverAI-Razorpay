@@ -16,7 +16,7 @@
 
 ### 🚀 Try RecoverAI
 
-#### 👉 [RecoverAI Live Application](https://YOUR-FRONTEND-URL.onrender.com)
+#### 👉 [RecoverAI Live Application](https://recoverai-razorpay-frontend.onrender.com)
 
 #### 👉 [Backend API](https://recoverai-razorpay-1.onrender.com)
 
