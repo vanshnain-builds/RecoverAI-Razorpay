@@ -57,26 +57,47 @@ class RecoveryEngine:
             "reasoning": "llm" if config.llm_enabled() else "simulated",
         }
 
-    def diagnose_and_decide(self, payment_id: str) -> RecoveryRecord:
+    def diagnose_and_decide(self, payment_id: str, use_llm: bool = True) -> RecoveryRecord:
+        """Diagnose and decide one payment.
+
+        `use_llm=False` is deliberately used for bulk dashboard hydration so a
+        page load never waits for one LLM request per payment. A selected
+        payment/recovery can still use the configured OpenRouter/Nemotron model.
+        """
         rec = self.records[payment_id]
         if rec.payment.status != PaymentStatus.FAILED:
             return rec
-        if rec.diagnosis is None:
+
+        if use_llm and config.llm_enabled():
+            # Refresh the selected case with the real configured LLM even when
+            # the fast dashboard pass already populated a simulated decision.
             rec.diagnosis = agent.diagnose(rec.payment)
-        if rec.decision is None:
             rec.decision = agent.decide(rec.payment, rec.diagnosis)
+            rec.policy = policy.evaluate(rec.payment, rec.decision)
+            return rec
+
+        if rec.diagnosis is None:
+            rec.diagnosis = agent._diagnose_simulated(rec.payment)
+        if rec.decision is None:
+            rec.decision = agent._decide_simulated(rec.payment, rec.diagnosis)
         if rec.policy is None:
             rec.policy = policy.evaluate(rec.payment, rec.decision)
         return rec
 
-    def diagnose_all(self) -> None:
+    def diagnose_all(self, use_llm: bool = False) -> None:
+        """Prepare bulk dashboard data without making hundreds of LLM calls.
+
+        The default is intentionally fast. Set RECOVERAI_LLM_BATCH=1 only when
+        a full LLM-powered batch analysis is explicitly desired.
+        """
         for pid, rec in self.records.items():
             if rec.payment.status == PaymentStatus.FAILED:
-                self.diagnose_and_decide(pid)
+                self.diagnose_and_decide(pid, use_llm=use_llm)
 
     def recover_one(self, payment_id: str, force_failure: bool = False) -> RecoveryRecord:
         with self._lock:
-            rec = self.diagnose_and_decide(payment_id)
+            # A single recovery is an AI-powered case flow when LLM is enabled.
+            rec = self.diagnose_and_decide(payment_id, use_llm=True)
             if rec.payment.status == PaymentStatus.RECOVERED and rec.outcome and rec.outcome.success:
                 return rec
             if rec.decision is None or rec.diagnosis is None or rec.policy is None:
@@ -120,7 +141,10 @@ class RecoveryEngine:
         return rec
 
     def recover_batch(self, limit: Optional[int] = None) -> Dict:
-        self.diagnose_all()
+        # Bulk recovery remains deterministic/bounded by default. Individual
+        # investigation/recovery can use Nemotron without making batch actions
+        # depend on hundreds of external LLM requests.
+        self.diagnose_all(use_llm=False)
         with self._lock:
             eligible = [
                 rec for rec in self.records.values()
@@ -208,7 +232,7 @@ class RecoveryEngine:
         }
 
     def queue(self, limit: int = 25) -> List[Dict]:
-        self.diagnose_all()
+        self.diagnose_all(use_llm=False)
         pending = [r for r in self.records.values() if r.payment.status == PaymentStatus.FAILED and r.outcome is None and r.decision]
         pending.sort(key=lambda r: r.decision.recovery_priority, reverse=True)
         return [{
@@ -246,7 +270,7 @@ class RecoveryEngine:
 
     def pipeline(self) -> Dict:
         """Return counts for each stage of the recovery pipeline."""
-        self.diagnose_all()
+        self.diagnose_all(use_llm=False)
         counts = Counter()
         for r in self.records.values():
             if r.payment.status == PaymentStatus.FAILED or r.payment.status == PaymentStatus.RECOVERED:
@@ -273,7 +297,7 @@ class RecoveryEngine:
 
     def category_breakdown(self) -> Dict:
         """Return failed/recoverable payment counts and amounts by AI category."""
-        self.diagnose_all()
+        self.diagnose_all(use_llm=False)
         out: Dict[str, Dict[str, float | int]] = {}
         for r in self.records.values():
             if r.payment.status not in (PaymentStatus.FAILED, PaymentStatus.RECOVERED):
@@ -293,7 +317,9 @@ class RecoveryEngine:
         return out
 
     def detail(self, payment_id: str) -> RecoveryRecord:
-        return self.diagnose_and_decide(payment_id)
+        # A focused case view is where the real OpenRouter/Nemotron reasoning is
+        # requested. This replaces the fast simulated hydration for that case.
+        return self.diagnose_and_decide(payment_id, use_llm=True)
 
 
 _engine: Optional[RecoveryEngine] = None
